@@ -88,20 +88,25 @@ bot.on("message:contact", async (ctx) => {
 });
 
 // Обработка ошибок согласно документации
+
+
 bot.catch((err) => {
   const ctx = err.ctx;
-  console.error(`Error while handling update ${ctx.update.update_id}:`);
   const e = err.error;
 
+  console.error(`❗ Xatolik update_id=${ctx.update.update_id}:`);
+
   if (e instanceof GrammyError) {
-    console.error("Error in request:", e.description);
+    console.error(`Telegram error [${e.error_code}]: ${e.description}`);
+    if (e.error_code === 403) {
+      console.warn("➡️ Bot was blocked by the user.");
+    }
   } else if (e instanceof HttpError) {
-    console.error("Could not contact Telegram:", e);
+    console.error("🌐 Network error:", e);
   } else {
-    console.error("Unknown error:", e);
+    console.error("❓ Unknown error:", e);
   }
 });
-
 // Функция запуска бота
 async function startBot() {
   try {
