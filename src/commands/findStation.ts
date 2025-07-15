@@ -1,66 +1,97 @@
 import { StationModel } from "../Models/Station.js";
 import { UserModel } from "../Models/User.js";
 import { MyContext } from "../types.js";
+import { InlineKeyboard } from "grammy";
 
+function getDistance(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
 
+  const aHav =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
 
-export const findStation = async (ctx: MyContext) => {
-
-
-    function getDistance(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371e3;
-  const φ1 = a.lat * Math.PI / 180;
-  const φ2 = b.lat * Math.PI / 180;
-  const Δφ = (b.lat - a.lat) * Math.PI / 180;
-  const Δλ = (b.lng - a.lng) * Math.PI / 180;
-
-  const hav = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(hav), Math.sqrt(1 - hav));
+  const c = 2 * Math.atan2(Math.sqrt(aHav), Math.sqrt(1 - aHav));
   return R * c;
 }
+
+export const findStation = async (ctx: MyContext) => {
   try {
     const telegramId = ctx.from?.id;
-    const fuel = ctx.callbackQuery?.data?.split(":")[1];
-    if(!fuel){
-        console.log("❗ Топливо не указано.");
+    const data = ctx.callbackQuery?.data?.split(":");
+    const fuel = data?.[1];
+    const showFar = data?.[2] === "showMore";
+
+    // 🧹 Delete previous menu
+    if (ctx.callbackQuery?.message?.message_id) {
+      await ctx.api.deleteMessage(ctx.chat?.id!, ctx.callbackQuery.message.message_id);
     }
 
-    // 1. Получаем пользователя
+    await ctx.answerCallbackQuery();
+
+    if (!fuel) {
+      return ctx.reply("❗ Укажите тип топлива.");
+    }
+
     const user = await UserModel.findOne({ telegramId });
-    if (!user || !user.location) {
-      await ctx.answerCallbackQuery({
-        text: "❗ Пожалуйста, сначала отправьте своё местоположение.",
-        show_alert: true,
-      });
-      return;
+    if (!user?.location) {
+      return ctx.reply("📍 Сначала отправьте своё местоположение.");
     }
 
-    // 2. Получаем все заправки с этим топливом
-    const stations = await StationModel.find({ fuel_types: { $in: [fuel] } });
+    const stations = await StationModel.find({ fuel_types: fuel });
     if (!stations.length) {
-      await ctx.reply("❌ Нет заправок с таким типом топлива поблизости.");
-      return;
+      return ctx.reply("⛽ Заправки с этим топливом не найдены.", {
+        reply_markup: new InlineKeyboard().text("⬅️ Назад", "menu:fuel"),
+      });
     }
 
-    // 3. Находим ближайшую
-    let nearest = stations[0];
-    let minDistance = getDistance(user.location, nearest.location);
+    const stationsWithDistance = stations.map((s) => ({
+      ...s.toObject(),
+      distance: getDistance(user.location, s.location),
+    }));
 
-    for (const station of stations) {
-      const distance = getDistance(user.location, station.location);
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearest = station;
-      }
+    const filtered = showFar
+      ? stationsWithDistance
+      : stationsWithDistance.filter((s) => s.distance <= 10000);
+
+    if (!filtered.length) {
+      return ctx.reply("😕 Нет заправок с этим топливом в радиусе 10 км.", {
+        reply_markup: new InlineKeyboard()
+          .text("🔁 Показать дальние", `fuel:${fuel}:showMore`)
+          .row()
+          .text("⬅️ Назад", "menu:fuel"),
+      });
     }
 
-    // 4. Отправляем результат
-    await ctx.reply(`✅ Ближайшая заправка с ${fuel}: *${nearest.name}*`, {
-      parse_mode: "Markdown",
+    const sorted = filtered.sort((a, b) => a.distance - b.distance).slice(0, 5);
+
+    for (const station of sorted) {
+      const msg = await ctx.reply(
+        `⛽ *${station.name}*\n📍 ${(station.distance / 1000).toFixed(1)} км`,
+        { parse_mode: "Markdown" }
+      );
+      const loc = await ctx.replyWithLocation(station.location.lat, station.location.lng);
+
+      // ⏳ Delete messages after 60s
+      setTimeout(async () => {
+        try {
+          await ctx.api.deleteMessage(ctx.chat?.id!, msg.message_id);
+          await ctx.api.deleteMessage(ctx.chat?.id!, loc.message_id);
+        } catch (err) {
+          console.warn("❗ Failed to delete message:", err.message);
+        }
+      }, 60000);
+    }
+
+    await ctx.reply("⬅️ Выберите действие:", {
+      reply_markup: new InlineKeyboard().text("🔙 Назад", "menu:fuel"),
     });
-    await ctx.replyWithLocation(nearest.location.lat, nearest.location.lng);
   } catch (err) {
-    console.error("Ошибка при поиске заправки:", err);
-    await ctx.reply("⚠️ Произошла ошибка. Попробуйте позже.");
+    console.error("❌ Ошибка в findStation:", err);
+    await ctx.reply("⚠️ Произошла ошибка при поиске заправки.");
   }
-}
+};

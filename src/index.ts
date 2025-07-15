@@ -87,6 +87,16 @@ bot.on("message:contact", async (ctx) => {
   });
 });
 
+bot.callbackQuery("menu:fuel", async (ctx) => {
+  try {
+    await ctx.deleteMessage(); // Deletes the previous nearest station message
+    await ctx.reply("⛽ Выберите тип топлива:", { reply_markup: fuelKeyboard });
+  } catch (err) {
+    console.error("❌ Ошибка при возврате в меню топлива:", err);
+  }
+});
+
+
 // Обработка ошибок согласно документации
 
 
@@ -113,8 +123,12 @@ async function startBot() {
     await mongoose.connect(
       "mongodb+srv://bahtiyorov757:password757@cluster0.ycr0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     );
-    bot.start();
-    console.log("Mongo connected and Bot started");
+    console.log("Mongo connected");
+    console.log("Mongoose connection state:", mongoose.connection.readyState);
+
+    await bot.start();
+    console.log("Bot started");
+
   } catch (error) {
     console.error("Error in startBot:", error);
   }
