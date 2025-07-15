@@ -3,7 +3,7 @@ import { StationModel } from "../Models/Station.js";
 import { InlineKeyboard, Keyboard } from "grammy";
 
 
-const fuelTypes = ["AI-80", "AI-90", "AI-91", "AI-92", "AI-98", "AI-100", "AI-102", "Metan", "Propan", "Elektrik"];
+const fuelTypes = ["AI-80", "AI-90", "AI-91", "AI-92", "AI-98", "AI-100", "AI-102", "Dizel", "Metan", "Propan", "Elektrik"];
 const getFuelKeyboard = (selected: string[]) => ({
   inline_keyboard: [
     ...fuelTypes.map(f => [{

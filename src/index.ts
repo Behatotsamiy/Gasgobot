@@ -53,7 +53,7 @@ bot.on("message:text", handleAddStationName);
 
 
 
- bot.callbackQuery(/^fuel:.+$/, async (ctx) => {
+ bot.callbackQuery(/^fuel/, async (ctx) => {
   if (ctx.session.step === "fuel") {
     // Это добавление заправки
     await handleFuelSelection(ctx);
