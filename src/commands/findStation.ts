@@ -24,9 +24,10 @@ export const findStation = async (ctx: MyContext) => {
     const telegramId = ctx.from?.id;
     const data = ctx.callbackQuery?.data?.split(":");
     const fuel = data?.[1];
-    const showFar = data?.[2] === "showMore";
+    const index = parseInt(data?.[2] || "0");
+    const showFar = data?.[3] === "showMore";
 
-    // 🧹 Delete previous menu
+    // 🧹 Delete previous message (text or button)
     if (ctx.callbackQuery?.message?.message_id) {
       await ctx.api.deleteMessage(ctx.chat?.id!, ctx.callbackQuery.message.message_id);
     }
@@ -61,25 +62,53 @@ export const findStation = async (ctx: MyContext) => {
     if (!filtered.length) {
       return ctx.reply("😕 Нет заправок с этим топливом в радиусе 10 км.", {
         reply_markup: new InlineKeyboard()
-          .text("🔁 Показать дальние", `fuel:${fuel}:showMore`)
+          .text("🔁 Показать дальние", `fuel:${fuel}:0:showMore`)
           .row()
           .text("⬅️ Назад", "menu:fuel"),
       });
     }
 
-    const sorted = filtered.sort((a, b) => a.distance - b.distance).slice(0, 5);
+    const sorted = filtered.sort((a, b) => a.distance - b.distance);
+    const station = sorted[index];
 
-    for (const station of sorted) {
-      const msg = await ctx.reply(
-        `⛽ *${station.name}*\n📍 ${(station.distance / 1000).toFixed(1)} км`,
-        { parse_mode: "Markdown" }
-      );
-      const loc = await ctx.replyWithLocation(station.location.lat, station.location.lng);
+    if (!station) {
+      return ctx.reply("❗ Заправка не найдена.");
     }
 
-    await ctx.reply("⬅️ Выберите действие:", {
-      reply_markup: new InlineKeyboard().text("🔙 Назад", "menu:fuel"),
-    });
+    // 🧹 Delete previous location if stored
+    const userId = ctx.from?.id;
+    if (ctx.session?.lastLocationMsgId) {
+      try {
+        await ctx.api.deleteMessage(ctx.chat?.id!, ctx.session.lastLocationMsgId);
+      } catch {}
+    }
+
+    // 📍 Send new location and store its ID
+    const locMsg = await ctx.replyWithLocation(station.location.lat, station.location.lng);
+    ctx.session.lastLocationMsgId = locMsg.message_id;
+
+    // 📄 Send station details with inline buttons
+    const keyboard = new InlineKeyboard();
+
+    if (sorted.length > 1) {
+      if (index > 0) {
+        keyboard.text("⬅️", `fuel:${fuel}:${index - 1}:${showFar ? "showMore" : ""}`);
+      }
+      if (index < sorted.length - 1) {
+        keyboard.text("➡️", `fuel:${fuel}:${index + 1}:${showFar ? "showMore" : ""}`);
+      }
+    }
+
+    keyboard.row().text("🔙 Назад", "menu:fuel");
+
+    await ctx.reply(
+      `⛽ *${station.name}*\n📍 ${(station.distance / 1000).toFixed(1)} км\n🧭 ${index + 1} из ${sorted.length}`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: keyboard,
+      }
+    );
+
   } catch (err) {
     console.error("❌ Ошибка в findStation:", err);
     await ctx.reply("⚠️ Произошла ошибка при поиске заправки.");
