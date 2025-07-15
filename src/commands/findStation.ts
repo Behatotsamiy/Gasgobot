@@ -75,16 +75,6 @@ export const findStation = async (ctx: MyContext) => {
         { parse_mode: "Markdown" }
       );
       const loc = await ctx.replyWithLocation(station.location.lat, station.location.lng);
-
-      // ⏳ Delete messages after 60s
-      setTimeout(async () => {
-        try {
-          await ctx.api.deleteMessage(ctx.chat?.id!, msg.message_id);
-          await ctx.api.deleteMessage(ctx.chat?.id!, loc.message_id);
-        } catch (err) {
-          console.warn("❗ Failed to delete message:", err.message);
-        }
-      }, 60000);
     }
 
     await ctx.reply("⬅️ Выберите действие:", {
