@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { Bot, Keyboard } from "grammy";
+import { Bot, InlineKeyboard, Keyboard } from "grammy";
 import { GrammyError, HttpError, session, SessionFlavor } from "grammy";
 import { UserModel } from "./Models/User.js";
 import mongoose from "mongoose";
@@ -37,7 +37,22 @@ bot.use(hydrate());
 
 bot.command("start", start);
 
-bot.on("message:location", locationKeyboard);
+bot.on("message:location", async (ctx) => {
+  // Remove the reply keyboard
+  await ctx.reply("✅ Lokatsiya saqlandi!", {
+    reply_markup: { remove_keyboard: true },
+  });
+
+  await ctx.reply("Benzin turini tanlang:", {
+    reply_markup: fuelKeyboard, // This should be an InlineKeyboard
+  });
+});
+
+const requestLocationKeyboard = new Keyboard()
+  .requestLocation("📍 Joylashuvni yuborish")
+  .resized()
+  .oneTime(); // hides after pressing
+
 
 bot.callbackQuery("profile", profileKeyboard);
 
@@ -75,16 +90,47 @@ bot.on("message:contact", async (ctx) => {
     { upsert: true }
   );
 
-  // После номера — запрашиваем локацию
-  const locationKeyboard = new Keyboard()
-    .requestLocation("📍 Joylashuvni yuborish")
-    .resized()
-    .oneTime();
-
   await ctx.reply("✅ Telefon raqamingiz saqlandi!");
   await ctx.reply("Endi iltimos, joylashuvingizni yuboring:", {
-    reply_markup: locationKeyboard,
+    reply_markup: requestLocationKeyboard,
   });
+});
+
+bot.callbackQuery("menu:fuel", async (ctx) => {
+  try {
+    await ctx.deleteMessage(); // Deletes the previous nearest station message
+    await ctx.reply("Yoqilg'ini tanlang!", { reply_markup: fuelKeyboard });
+  } catch (err) {
+    console.error("❌ Menuga qaytishda xatolik", err);
+  }
+});
+bot.callbackQuery("menu:location", async (ctx) => {
+  try {
+    await ctx.deleteMessage();
+
+    const keyboard = new InlineKeyboard()
+      .text("✅ Ha", "location:yes")
+      .text("⬅️ Ortga", "backToMenu");
+
+    await ctx.reply("📍 Siz joylashuvni o'zgartirmoqchimisiz?", {
+      reply_markup: keyboard,
+    });
+
+  } catch (err) {
+    console.error("❌ Location menu error:", err);
+  }
+});
+bot.callbackQuery("location:yes", async (ctx) => {
+  try {
+    await ctx.deleteMessage();
+
+    await ctx.reply("📍 Yangi joylashuvni yuboring:", {
+      reply_markup: requestLocationKeyboard,
+    });
+
+  } catch (err) {
+    console.error("❌ Location:yes error:", err);
+  }
 });
 
 // Обработка ошибок согласно документации
@@ -113,8 +159,12 @@ async function startBot() {
     await mongoose.connect(
       "mongodb+srv://bahtiyorov757:password757@cluster0.ycr0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     );
-    bot.start();
-    console.log("Mongo connected and Bot started");
+    console.log("Mongo connected");
+    console.log("Mongoose connection state:", mongoose.connection.readyState);
+
+    await bot.start();
+    console.log("Bot started");
+
   } catch (error) {
     console.error("Error in startBot:", error);
   }
