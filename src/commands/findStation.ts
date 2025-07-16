@@ -35,18 +35,18 @@ export const findStation = async (ctx: MyContext) => {
     await ctx.answerCallbackQuery();
 
     if (!fuel) {
-      return ctx.reply("❗ Укажите тип топлива.");
+      return ctx.reply("❗ Yoqilg'ini tanglang");
     }
 
     const user = await UserModel.findOne({ telegramId });
     if (!user?.location) {
-      return ctx.reply("📍 Сначала отправьте своё местоположение.");
+      return ctx.reply("📍 Oldin joylashuvingizni ulashing");
     }
 
     const stations = await StationModel.find({ fuel_types: fuel });
     if (!stations.length) {
-      return ctx.reply("⛽ Заправки с этим топливом не найдены.", {
-        reply_markup: new InlineKeyboard().text("⬅️ Назад", "menu:fuel"),
+      return ctx.reply("⛽ Bu yoqilg'ilik shaxopchalar topilmadi", {
+        reply_markup: new InlineKeyboard().text("⬅️ Ortga", "menu:fuel"),
       });
     }
 
@@ -60,11 +60,11 @@ export const findStation = async (ctx: MyContext) => {
       : stationsWithDistance.filter((s) => s.distance <= 10000);
 
     if (!filtered.length) {
-      return ctx.reply("😕 Нет заправок с этим топливом в радиусе 10 км.", {
+      return ctx.reply("😕 Bunday shahobchalar 10 км. ichida topilmadi.", {
         reply_markup: new InlineKeyboard()
-          .text("🔁 Показать дальние", `fuel:${fuel}:0:showMore`)
+          .text("🔁 Uzoqroqni ko'rish", `fuel:${fuel}:0:showMore`)
           .row()
-          .text("⬅️ Назад", "menu:fuel"),
+          .text("⬅️ Ortga", "menu:fuel"),
       });
     }
 
@@ -99,10 +99,10 @@ export const findStation = async (ctx: MyContext) => {
       }
     }
 
-    keyboard.row().text("🔙 Назад", "menu:fuel");
+    keyboard.row().text("🔙 Ortga", "menu:fuel");
 
     await ctx.reply(
-      `⛽ *${station.name}*\n📍 ${(station.distance / 1000).toFixed(1)} км\n🧭 ${index + 1} из ${sorted.length}`,
+      `⛽ *${station.name}*\n📍 ${(station.distance / 1000).toFixed(1)} км\n🧭 ${index + 1} dan ${sorted.length}`,
       {
         parse_mode: "Markdown",
         reply_markup: keyboard,
