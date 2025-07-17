@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Bot, InlineKeyboard, Keyboard } from "grammy";
-import { GrammyError, HttpError, session, SessionFlavor } from "grammy";
+import { GrammyError, HttpError, session } from "grammy";
 import { UserModel } from "./Models/User.js";
 import mongoose from "mongoose";
 import { hydrate } from "@grammyjs/hydrate";
@@ -25,6 +25,7 @@ if (!Key) {
 }
 
 const bot = new Bot<MyContext>(Key);
+
 bot.use(
   session({
     initial: (): SessionData => ({
@@ -33,47 +34,29 @@ bot.use(
     }),
   })
 );
+
 bot.use(hydrate());
 
 bot.command("start", start);
 
-bot.on("message:location", async (ctx) => {
-  // Remove the reply keyboard
-  await ctx.reply("✅ Lokatsiya saqlandi!", {
-    reply_markup: { remove_keyboard: true },
-  });
-
-  await ctx.reply("Benzin turini tanlang:", {
-    reply_markup: fuelKeyboard, // This should be an InlineKeyboard
-  });
-});
+bot.on("message:location", locationKeyboard);
 
 const requestLocationKeyboard = new Keyboard()
   .requestLocation("📍 Joylashuvni yuborish")
   .resized()
-  .oneTime(); // hides after pressing
-
+  .oneTime();
 
 bot.callbackQuery("profile", profileKeyboard);
-
 bot.callbackQuery("backToMenu", backToMenuKeyboard);
-
 bot.callbackQuery("donate", donateKeyboard);
-
 bot.callbackQuery("money", moneyKeyboard);
-
 bot.callbackQuery("addStationKB", addStation);
-
 bot.on("message:text", handleAddStationName);
 
-
-
- bot.callbackQuery(/^fuel/, async (ctx) => {
+bot.callbackQuery(/^fuel/, async (ctx) => {
   if (ctx.session.step === "fuel") {
-    // Это добавление заправки
     await handleFuelSelection(ctx);
   } else {
-    // Это поиск
     await findStation(ctx);
   }
 });
@@ -98,12 +81,13 @@ bot.on("message:contact", async (ctx) => {
 
 bot.callbackQuery("menu:fuel", async (ctx) => {
   try {
-    await ctx.deleteMessage(); // Deletes the previous nearest station message
+    await ctx.deleteMessage();
     await ctx.reply("Yoqilg'ini tanlang!", { reply_markup: fuelKeyboard });
   } catch (err) {
     console.error("❌ Menuga qaytishda xatolik", err);
   }
 });
+
 bot.callbackQuery("menu:location", async (ctx) => {
   try {
     await ctx.deleteMessage();
@@ -115,26 +99,21 @@ bot.callbackQuery("menu:location", async (ctx) => {
     await ctx.reply("📍 Siz joylashuvni o'zgartirmoqchimisiz?", {
       reply_markup: keyboard,
     });
-
   } catch (err) {
     console.error("❌ Location menu error:", err);
   }
 });
+
 bot.callbackQuery("location:yes", async (ctx) => {
   try {
     await ctx.deleteMessage();
-
     await ctx.reply("📍 Yangi joylashuvni yuboring:", {
       reply_markup: requestLocationKeyboard,
     });
-
   } catch (err) {
     console.error("❌ Location:yes error:", err);
   }
 });
-
-// Обработка ошибок согласно документации
-
 
 bot.catch((err) => {
   const ctx = err.ctx;
@@ -153,7 +132,7 @@ bot.catch((err) => {
     console.error("❓ Unknown error:", e);
   }
 });
-// Функция запуска бота
+
 async function startBot() {
   try {
     await mongoose.connect(
@@ -164,7 +143,6 @@ async function startBot() {
 
     await bot.start();
     console.log("Bot started");
-
   } catch (error) {
     console.error("Error in startBot:", error);
   }

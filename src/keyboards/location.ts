@@ -7,14 +7,16 @@ export const locationKeyboard = async (ctx: MyContext) => {
   if (!location) {
     return ctx.reply("Iltimos, joylashuvingizni yuboring.");
   }
-  const { latitude, longitude } = location;
 
+  const { latitude, longitude } = location;
+  const telegramId = ctx.from?.id;
   const first_name = ctx.from?.first_name || "Foydalanuvchi";
 
-  try {
-    const telegramId = ctx.from?.id;
-    if (!telegramId) return ctx.reply("Foydalanuvchi topilmadi.");
+  if (!telegramId) {
+    return ctx.reply("Foydalanuvchi topilmadi.");
+  }
 
+  try {
     const user = await UserModel.findOneAndUpdate(
       { telegramId },
       {
@@ -22,7 +24,7 @@ export const locationKeyboard = async (ctx: MyContext) => {
           location: { lat: latitude, lng: longitude },
         },
       },
-      { new: true } // возвращает обновлённый документ
+      { new: true } // return the updated user
     );
 
     if (!user) {
@@ -37,14 +39,15 @@ export const locationKeyboard = async (ctx: MyContext) => {
         },
       }
     );
-    // Отправляем сообщение с кнопкой "Меню"
-    await ctx.reply(`Qaytish bilan, ${first_name}!`, {});
+
+    await ctx.reply(`Qaytganingizdan xursandmiz, ${first_name}!`);
 
     await ctx.reply("Endi yonilg'i turini tanlang:", {
       reply_markup: fuelKeyboard,
     });
+
   } catch (err) {
-    console.error("Location saqlashda xatolik:", err);
-    ctx.reply("Joylashuvni saqlashda xatolik yuz berdi.");
+    console.error("📍 Location saqlashda xatolik:", err);
+    return ctx.reply("Joylashuvni saqlashda xatolik yuz berdi.");
   }
 };
