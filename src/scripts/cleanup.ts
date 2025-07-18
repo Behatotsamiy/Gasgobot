@@ -3,8 +3,9 @@ import mongoose from "mongoose";
 import { StationModel } from "../Models/Station.js";
 
 async function cleanup() {
+  const MONGO =  process.env.MONGO_URI
   try {
-    await mongoose.connect("mongodb+srv://bahtiyorov757:password757@cluster0.ycr0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
+    await mongoose.connect(MONGO);
 
     console.log("✅ Connected to MongoDB");
 
