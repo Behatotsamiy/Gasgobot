@@ -1,9 +1,8 @@
 import { MyContext } from "../types.js";
-import { fuelKeyboard } from "./_fuelkeyboard.js";
+import { showFuelSelection } from "./_fuelkeyboard.ts";
 
-export const backToMenuKeyboard = (ctx: MyContext) => {
+export const backToMenuKeyboard = async (ctx: MyContext) => {
   ctx.answerCallbackQuery();
-  ctx.callbackQuery?.message?.editText("Endi yonilg'i turini tanlang:", {
-    reply_markup: fuelKeyboard,
-  });
+  await ctx.deleteMessage();
+  return showFuelSelection(ctx)
 };

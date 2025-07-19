@@ -1,6 +1,6 @@
-import { UserModel } from "../Models/User.js";
-import { MyContext } from "../types.js";
-import { fuelKeyboard } from "./_fuelkeyboard.js";
+import { UserModel } from "../Models/User.ts";
+import { MyContext } from "../types.ts";
+import { showFuelSelection } from "../keyboards/_fuelkeyboard.ts";
 
 export const locationKeyboard = async (ctx: MyContext) => {
   const location = ctx.message?.location;
@@ -41,10 +41,7 @@ export const locationKeyboard = async (ctx: MyContext) => {
     );
 
     await ctx.reply(`Qaytganingizdan xursandmiz, ${first_name}!`);
-
-    await ctx.reply("Endi yonilg'i turini tanlang:", {
-      reply_markup: fuelKeyboard,
-    });
+    return showFuelSelection(ctx)
 
   } catch (err) {
     console.error("📍 Location saqlashda xatolik:", err);

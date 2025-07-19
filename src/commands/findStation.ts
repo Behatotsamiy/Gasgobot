@@ -1,6 +1,6 @@
 import { StationModel } from "../Models/Station.js";
 import { UserModel } from "../Models/User.js";
-import { locationKeyboard } from "../keyboards/location.js";
+import { locationKeyboard } from "./location.ts";
 import { MyContext } from "../types.js";
 import { InlineKeyboard, Keyboard } from "grammy";
 
@@ -32,7 +32,10 @@ export const findStation = async (ctx: MyContext) => {
     const showFar = data?.[3] === "showMore";
 
     if (ctx.callbackQuery?.message?.message_id) {
-      await ctx.api.deleteMessage(ctx.chat?.id!, ctx.callbackQuery.message.message_id);
+      await ctx.api.deleteMessage(
+        ctx.chat?.id!,
+        ctx.callbackQuery.message.message_id
+      );
     }
 
     await ctx.answerCallbackQuery();
@@ -44,29 +47,30 @@ export const findStation = async (ctx: MyContext) => {
     const user = await UserModel.findOne({ telegramId });
 
     if (!user) {
-      return ctx.reply("❗ Foydalanuvchi topilmadi. Iltimos, /start buyrug‘ini yuboring.");
+      return ctx.reply(
+        "❗ Foydalanuvchi topilmadi. Iltimos, /start buyrug‘ini yuboring."
+      );
     }
-    
+
     // 📞 Check for missing phone number
     if (!user.phone_number) {
       return ctx.reply(
         "📞 Telefon raqamingiz saqlanmagan. Iltimos, raqamingizni yuboring.",
         {
-          reply_markup: locationKeyboard
+          reply_markup: locationKeyboard,
         }
       );
     }
-    
+
     // 📍 Check for missing location
     if (!user.location?.lat || !user.location?.lng) {
       return ctx.reply(
         "📍 Joylashuvingiz saqlanmagan. Iltimos, lokatsiyangizni yuboring.",
         {
-          reply_markup: locationKeyboard
+          reply_markup: locationKeyboard,
         }
       );
     }
-    
 
     const stations = await StationModel.find({ fuel_types: fuel });
 
@@ -97,7 +101,7 @@ export const findStation = async (ctx: MyContext) => {
             .row()
             .text("➕ Stansiya qo'shish", "addStationKB")
             .row()
-            .text("⬅️ Ortga", "menu:fuel"),
+            .text("⬅️ Ortga", "backToMenu"),
         }
       );
     }
@@ -111,28 +115,42 @@ export const findStation = async (ctx: MyContext) => {
 
     if (ctx.session?.lastLocationMsgId) {
       try {
-        await ctx.api.deleteMessage(ctx.chat?.id!, ctx.session.lastLocationMsgId);
+        await ctx.api.deleteMessage(
+          ctx.chat?.id!,
+          ctx.session.lastLocationMsgId
+        );
       } catch (e) {}
     }
 
-    const locMsg = await ctx.replyWithLocation(station.location.lat, station.location.lng);
+    const locMsg = await ctx.replyWithLocation(
+      station.location.lat,
+      station.location.lng
+    );
     ctx.session.lastLocationMsgId = locMsg.message_id;
 
     const keyboard = new InlineKeyboard();
 
     if (sorted.length > 1) {
       if (index > 0) {
-        keyboard.text("⬅️", `fuel:${fuel}:${index - 1}:${showFar ? "showMore" : ""}`);
+        keyboard.text(
+          "⬅️",
+          `fuel:${fuel}:${index - 1}:${showFar ? "showMore" : ""}`
+        );
       }
       if (index < sorted.length - 1) {
-        keyboard.text("➡️", `fuel:${fuel}:${index + 1}:${showFar ? "showMore" : ""}`);
+        keyboard.text(
+          "➡️",
+          `fuel:${fuel}:${index + 1}:${showFar ? "showMore" : ""}`
+        );
       }
     }
 
     keyboard.row().text("🔙 Ortga", "menu:fuel");
 
     await ctx.reply(
-      `⛽ *${station.name}*\n📍 ${(station.distance / 1000).toFixed(1)} km\n🧭 ${index + 1} dan ${sorted.length}`,
+      `⛽ *${station.name}*\n📍 ${(station.distance / 1000).toFixed(
+        1
+      )} km\n🧭 ${index + 1} dan ${sorted.length}`,
       {
         parse_mode: "Markdown",
         reply_markup: keyboard,

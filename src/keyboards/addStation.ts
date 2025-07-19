@@ -16,8 +16,8 @@ const getFuelKeyboard = (selected: string[]) => ({
 });
 
 
-
 export const addStation = async (ctx: MyContext) => {
+  await ctx.deleteMessage();
   ctx.session.step = "name";
   ctx.session.station = { name: "", fuel_types: [] };
   await ctx.reply("📝 Stansiya nomini kiriting:" , {
