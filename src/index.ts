@@ -20,11 +20,12 @@ import {
 } from "./keyboards/_index.ts";
 
 const Key = process.env.BOT_TOKEN;
-const mongo_uri: string = process.env.MONGO_URI;
+const mongo_uri = `mongodb+srv://bahtiyorov757:password757@cluster0.ycr0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 const broadcastMap = new Map<number, string>();
 
 if (!Key) throw new Error("BOT_TOKEN is not defined in .env file");
 if (!mongo_uri) throw new Error("MONGO_URI is not defined in .env file");
+
 
 const bot = new Bot<MyContext>(Key);
 
@@ -43,6 +44,7 @@ bot.use(hydrate());
 
 bot.command("start", start);
 bot.command("admin", admin);
+
 
 bot.on("message:location", locationKeyboard);
 
@@ -261,6 +263,7 @@ async function startBot() {
     await mongoose.connect(mongo_uri);
     console.log("Mongo connected");
     console.log("Mongoose connection state:", mongoose.connection.readyState);
+    console.log(mongo_uri);
     await bot.start();
   } catch (error) {
     console.error("Error in startBot:", error);
