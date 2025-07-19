@@ -46,11 +46,6 @@ bot.command("admin", admin);
 
 bot.on("message:location", locationKeyboard);
 
-const requestLocationKeyboard = new Keyboard()
-  .requestLocation("📍 Joylashuvni yuborish")
-  .resized()
-  .oneTime();
-
 bot.callbackQuery("profile", profileKeyboard);
 bot.callbackQuery("backToMenu", backToMenuKeyboard);
 bot.callbackQuery("donate", donateKeyboard);
@@ -97,7 +92,7 @@ bot.on("message:contact", async (ctx) => {
 
   await ctx.reply("✅ Telefon raqamingiz saqlandi!");
   await ctx.reply("Endi iltimos, joylashuvingizni yuboring:", {
-    reply_markup: requestLocationKeyboard,
+    reply_markup: locationKeyboard,
   });
 });
 
@@ -120,7 +115,7 @@ bot.callbackQuery("menu:location", async (ctx) => {
 bot.callbackQuery("location:yes", async (ctx) => {
   await ctx.deleteMessage();
   await ctx.reply("📍 Yangi joylashuvni yuboring:", {
-    reply_markup: requestLocationKeyboard,
+    reply_markup: locationKeyboard,
   });
 });
 
