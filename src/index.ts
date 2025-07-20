@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { Bot, InlineKeyboard, Keyboard } from "grammy";
+import { Bot, InlineKeyboard } from "grammy";
 import { GrammyError, HttpError, session } from "grammy";
 import mongoose from "mongoose";
 import { hydrate } from "@grammyjs/hydrate";
@@ -8,12 +8,12 @@ import { UserModel } from "./Models/User.js";
 import { findStation, start, admin } from "./commands/_index.js";
 import {
   locationKeyboard,
-  handleAddStationName,
-  handleFuelSelection,
-} from "./keyboards/_index.ts";
+  sendLocationRequestKeyboard,
+} from "./commands/location.ts";
 import { HandleCallbackQuery } from "./handlers/callbackHandlers.ts";
-import { broadcastMap } from "./utils/broadcastMap.ts"; // adjust path based on location
-
+import { broadcastMap } from "./utils/broadcastMap.ts";
+import { Station_Admin } from "./commands/stationAdmin/stationAdmin.ts";
+import { handleAddStationName, handleStationCallbacks } from "./keyboards/addStation.ts"
 
 const Key = process.env.BOT_TOKEN;
 const mongo_uri: string = process.env.MONGO_URI;
@@ -38,23 +38,27 @@ bot.use(hydrate());
 
 bot.command("start", start);
 bot.command("admin", admin);
+bot.command("ishla", Station_Admin);
 
-bot.on("message:location", locationKeyboard);
+// 📍 Handle location messages
+bot.on("message:location", async (ctx) => {
+  if (ctx.session.step === "station_location") {
+    return handleStationCallbacks(ctx);
+  }
 
-// registration (one line)
+  return locationKeyboard(ctx);
+});
+
+// 🔘 Handle callback queries
 bot.on("callback_query:data", HandleCallbackQuery);
 
-// ✅ Broadcast handler FIRST
-bot.on("message", async (ctx) => {
+// 📢 Broadcast flow
+bot.on("message:text", async (ctx, next) => {
   if (ctx.session.awaitingBroadcast) {
-    const text = ctx.message?.text;
-
-    if (!text) return ctx.reply("❌ Only text messages are supported.");
-
+    const text = ctx.message.text;
     broadcastMap.set(ctx.from.id, text);
     ctx.session.awaitingBroadcast = false;
-    console.log(broadcastMap);
-    
+
     const confirmKeyboard = new InlineKeyboard()
       .text("✅ Confirm", "broadcast_confirm")
       .text("❌ Cancel", "broadcast_cancel");
@@ -62,12 +66,16 @@ bot.on("message", async (ctx) => {
     await ctx.reply(`You entered:\n\n${text}\n\nConfirm broadcast?`, {
       reply_markup: confirmKeyboard,
     });
+    return;
   }
+
+  await next();
 });
 
-
+// 🏷 Add station name
 bot.on("message:text", handleAddStationName);
 
+// ⛽️ Fuel selection
 bot.callbackQuery(/^fuel/, async (ctx) => {
   if (ctx.session.step === "fuel") {
     await handleFuelSelection(ctx);
@@ -76,6 +84,7 @@ bot.callbackQuery(/^fuel/, async (ctx) => {
   }
 });
 
+// ☎️ Contact handler
 bot.on("message:contact", async (ctx) => {
   const telegramId = ctx.from.id;
   const phone = ctx.message.contact?.phone_number;
@@ -88,11 +97,10 @@ bot.on("message:contact", async (ctx) => {
   );
 
   await ctx.reply("✅ Telefon raqamingiz saqlandi!");
-  await ctx.reply("Endi iltimos, joylashuvingizni yuboring:", {
-    reply_markup: locationKeyboard,
-  });
+  await sendLocationRequestKeyboard(ctx); // → prompt for location
 });
 
+// 🚨 Error logging
 bot.catch((err) => {
   const ctx = err.ctx;
   const e = err.error;

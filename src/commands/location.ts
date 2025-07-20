@@ -2,6 +2,7 @@ import { UserModel } from "../Models/User.ts";
 import { MyContext } from "../types.ts";
 import { showFuelSelection } from "../keyboards/_fuelkeyboard.ts";
 
+// 🎯 Handle user's shared location
 export const locationKeyboard = async (ctx: MyContext) => {
   const location = ctx.message?.location;
   if (!location) {
@@ -24,27 +25,33 @@ export const locationKeyboard = async (ctx: MyContext) => {
           location: { lat: latitude, lng: longitude },
         },
       },
-      { new: true } // return the updated user
+      { new: true }
     );
 
     if (!user) {
       return ctx.reply("Foydalanuvchi bazadan topilmadi.");
     }
 
-    await ctx.reply(
-      `✅ Joylashuvingiz saqlandi:\n🌍 ${latitude}, ${longitude}`,
-      {
-        reply_markup: {
-          remove_keyboard: true,
-        },
-      }
-    );
+    await ctx.reply(`✅ Joylashuvingiz saqlandi:\n🌍 ${latitude}, ${longitude}`, {
+      reply_markup: { remove_keyboard: true },
+    });
 
     await ctx.reply(`Qaytganingizdan xursandmiz, ${first_name}!`);
-    return showFuelSelection(ctx)
+    return showFuelSelection(ctx);
 
   } catch (err) {
     console.error("📍 Location saqlashda xatolik:", err);
     return ctx.reply("Joylashuvni saqlashda xatolik yuz berdi.");
   }
+};
+
+// 📍 Show location request button
+export const sendLocationRequestKeyboard = async (ctx: MyContext) => {
+  await ctx.reply("📍 Iltimos, joylashuvingizni yuboring:", {
+    reply_markup: {
+      keyboard: [[{ text: "📍 Joylashuvni yuborish", request_location: true }]],
+      resize_keyboard: true,
+      one_time_keyboard: true,
+    },
+  });
 };
