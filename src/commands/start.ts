@@ -1,7 +1,7 @@
 import { InlineKeyboard, Keyboard } from "grammy";
 import { UserModel } from "../Models/User.js";
 import { MyContext } from "../types.js";
-import { fuelKeyboard } from "../keyboards/_fuelkeyboard.js";
+import {  showFuelSelection } from "../keyboards/_fuelkeyboard.ts";
 import { safeReply } from "../safeReply.js";
 
 export const start = async (ctx: MyContext) => {
@@ -42,21 +42,22 @@ export const start = async (ctx: MyContext) => {
         });
         await newUser.save();
 
-        await safeReply(ctx,`Xush kelibsiz, ${first_name}!`);
+        await safeReply(ctx, `Xush kelibsiz, ${first_name}!`);
       }
 
-      return safeReply(ctx,"Iltimos, telefon raqamingizni yuboring:", {
+      return safeReply(ctx, "Iltimos, telefon raqamingizni yuboring:", {
         reply_markup: contactKeyboard,
       });
     }
 
     // Если у пользователя уже есть и контакт, и локация
-    return safeReply(ctx, "Siz allaqachon ro'yxatdan o'tgansiz.", {
-      reply_markup: fuelKeyboard
-    });
-
+    await safeReply(ctx, "Siz allaqachon ro'yxatdan o'tgansiz.");
+    return showFuelSelection(ctx)
   } catch (error) {
     console.error("Error fetching user:", error);
-    safeReply(ctx, "Xatolik yuz berdi, iltimos keyinroq qaytadan urinib ko'ring.");
+    safeReply(
+      ctx,
+      "Xatolik yuz berdi, iltimos keyinroq qaytadan urinib ko'ring."
+    );
   }
 };

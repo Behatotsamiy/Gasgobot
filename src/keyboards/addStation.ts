@@ -1,35 +1,51 @@
 import { MyContext } from "../types.js";
 import { StationModel } from "../Models/Station.js";
-import { InlineKeyboard, Keyboard } from "grammy";
-
+import { UserModel } from "../Models/User.js";
+import { InlineKeyboard } from "grammy";
 
 const fuelTypes = ["AI-80", "AI-90", "AI-91", "AI-92", "AI-98", "AI-100", "AI-102", "Dizel", "Metan", "Propan", "Elektrik"];
+
 const getFuelKeyboard = (selected: string[]) => ({
   inline_keyboard: [
     ...fuelTypes.map(f => [{
       text: selected.includes(f) ? `✅ ${f}` : f,
-      callback_data: `fuel:${f}`
+      callback_data: `fuel_select:${f}`
     }]),
-    [{ text: "✅ Tayyor", callback_data: "fuel_done" }]
-
+    [{ text: "✅ Tayyor", callback_data: "fuel_done" }],
+    [{ text: "🔙 Orqaga", callback_data: "backToMenu" }]
   ]
 });
 
+const getOwnershipKeyboard = () => new InlineKeyboard()
+  .text("✅ Ha, men egasiman", "ownership_confirm")
+  .text("❌ Yo'q, men egasi emasman", "ownership_deny")
+  .text("🔙 Orqaga", "backToMenu");
 
+const getLocationInputKeyboard = () => new InlineKeyboard()
+  .text("📍 Joylashuvni yuborish", "station_share_location")
+  .row()
+  .text("🔙 Orqaga", "backToMenu");
 
 export const addStation = async (ctx: MyContext) => {
+  await ctx.deleteMessage().catch(() => {});
   ctx.session.step = "name";
+  
+  if (!ctx.session.prevMenu) {
+    ctx.session.prevMenu = "fuel_menu";
+  }
+  
   ctx.session.station = { name: "", fuel_types: [] };
-  await ctx.reply("📝 Stansiya nomini kiriting:" , {
-   reply_markup: new InlineKeyboard().text("Orqaga " , "backToMenu")
-  });
 
-}
+  await ctx.reply("📝 Stansiya nomini kiriting:", {
+    reply_markup: new InlineKeyboard().text("🔙 Orqaga", "backToMenu")
+  });
+};
 
 export const handleAddStationName = async (ctx: MyContext) => {
   const step = ctx.session.step;
   const text = ctx.message?.text?.trim();
-    if (!text) return ctx.reply("❌ Nom bo'sh bo'lishi mumkin emas!");
+  
+  if (!text) return ctx.reply("❌ Nom bo'sh bo'lishi mumkin emas!");
 
   if (step === "name") {
     ctx.session.station.name = text;
@@ -38,59 +54,301 @@ export const handleAddStationName = async (ctx: MyContext) => {
       reply_markup: getFuelKeyboard([])
     });
   }
-
   else if (step === "location") {
     const match = text.match(/^([-+]?\d*\.?\d+),\s*([-+]?\d*\.?\d+)$/);
-    if (!match) return ctx.reply(" Format: `41.3030, 69.2829`", { parse_mode: "Markdown" });
+    if (!match) {
+      return ctx.reply("❌ Noto'g'ri format! Misol: <code>41.3030, 69.2829</code>", { 
+        parse_mode: "HTML" 
+      });
+    }
 
     const lat = parseFloat(match[1]);
     const lng = parseFloat(match[2]);
-
-    const { name, fuel_types } = ctx.session.station;
-
-    // Сохраняем в MongoDB
-    await StationModel.create({
-      name,
-      fuel_types,
-      location: { lat, lng }
-    });
-
-    await ctx.reply(`✅ Saqlandi:\n🏷️ ${name}\n⛽ ${fuel_types.join(", ")}\n📍 ${lat}, ${lng}`,
-      { reply_markup: new InlineKeyboard().text("Orqaga", "backToMenu") }
-    );
-    ctx.session = { station: { name: "", fuel_types: [] }, step: undefined };
     
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return ctx.reply("❌ Koordinatalar noto'g'ri! Lat: -90 to 90, Lng: -180 to 180");
+    }
+
+    ctx.session.station.location = { lat, lng };
+    ctx.session.step = "ownership";
+    
+    await ctx.reply(
+      "🏢 Siz bu stansiyaning egasi yoki rahbari sifatida qo'shyapsizmi?\n\n" +
+      "⚠️ Faqat rasmiy egalar yoki vakolatli shaxslar stansiya ma'lumotlarini qo'sha oladi.",
+      { reply_markup: getOwnershipKeyboard() }
+    );
   }
-} 
+};
 
-export const handleFuelSelection = async (ctx: MyContext) => {
-  if (ctx.session.step !== "fuel") return;
+export const handleStationLocation = async (ctx: MyContext) => {
+  if (ctx.session.step !== "location") return false;
+  
+  const location = ctx.message?.location;
+  if (!location) return false;
 
+  const { latitude, longitude } = location;
+  
+  ctx.session.station.location = { lat: latitude, lng: longitude };
+  ctx.session.step = "ownership";
+  
+  await ctx.reply(
+    `✅ Stansiya joylashuvi saqlandi: ${latitude}, ${longitude}\n\n` +
+    "🏢 Siz bu stansiyaning egasi yoki rahbari sifatida qo'shyapsizmi?\n\n" +
+    "⚠️ Faqat rasmiy egalar yoki vakolatli shaxslar stansiya ma'lumotlarini qo'sha oladi.",
+    { reply_markup: getOwnershipKeyboard() }
+  );
+  
+  return true;
+};
+
+export const handleStationCallbacks = async (ctx: MyContext) => {
   const data = ctx.callbackQuery?.data;
+  if (!data) return ctx.answerCallbackQuery({ text: "Ma'lumot topilmadi", show_alert: true });
 
-  if (data?.startsWith("fuel:")) {
-    const type = data.split(":")[1];
-    const fuels = ctx.session.station.fuel_types;
+  if (data.startsWith("fuel_select:")) {
+    if (ctx.session.step !== "fuel") return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
+    
+    const fuelType = data.split(":")[1];
+    const currentFuels = ctx.session.station.fuel_types || [];
 
-    if (fuels.includes(type)) {
-      ctx.session.station.fuel_types = fuels.filter(f => f !== type);
+    if (currentFuels.includes(fuelType)) {
+      ctx.session.station.fuel_types = currentFuels.filter(f => f !== fuelType);
     } else {
-      fuels.push(type);
+      ctx.session.station.fuel_types = [...currentFuels, fuelType];
     }
 
     await ctx.editMessageReplyMarkup({
-      reply_markup: getFuelKeyboard(fuels)
+      reply_markup: getFuelKeyboard(ctx.session.station.fuel_types)
     });
-    return ctx.answerCallbackQuery();
+    
+    return ctx.answerCallbackQuery({
+      text: currentFuels.includes(fuelType) 
+        ? `❌ ${fuelType} olib tashlandi` 
+        : `✅ ${fuelType} tanlandi`
+    });
   }
 
   if (data === "fuel_done") {
-    if (ctx.session.station.fuel_types.length === 0)
-      return ctx.answerCallbackQuery({ text: "🚫 Hech narsa tanlanmagan!" });
-
+    if (ctx.session.step !== "fuel") return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
+    
+    if (!ctx.session.station.fuel_types || ctx.session.station.fuel_types.length === 0) {
+      return ctx.answerCallbackQuery({ 
+        text: "🚫 Hech bo'lmagan bitta yonilg'i turi tanlang!", 
+        show_alert: true 
+      });
+    }
+    
     ctx.session.step = "location";
-    await ctx.editMessageText("✅ Yonilg'i saqlandi.");
-    await ctx.reply("📍 Koordinatani yuboring: `41.3030, 69.2829`", { parse_mode: "Markdown" });
+    await ctx.editMessageText("✅ Yonilg'i turlari saqlandi.");
+    await ctx.reply(
+      "📍 Stansiya joylashuvini yuboring:\n\n" +
+      "📝 <b>Koordinatalarni yozing</b>: <code>41.3030, 69.2829</code>\n" +
+      "📍 <b>Yoki pastdagi tugmani bosing</b>", 
+      { 
+        parse_mode: "HTML",
+        reply_markup: getLocationInputKeyboard()
+      }
+    );
     return ctx.answerCallbackQuery();
   }
-}
+
+  if (data === "station_share_location") {
+    if (!ctx.session || ctx.session.step !== "location") {
+      return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
+    }
+    
+    await ctx.editMessageText("📍 Stansiya joylashuvini yuboring:");
+    return ctx.answerCallbackQuery();
+  }
+
+  if (data === "ownership_confirm") {
+    if (ctx.session.step !== "ownership") return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
+    
+    const { name, fuel_types, location } = ctx.session.station;
+    const userId = ctx.from?.id;
+    const userFirstName = ctx.from?.first_name || "Unknown";
+    const userUsername = ctx.from?.username || "no_username";
+
+    if (!userId || !name || !fuel_types.length || !location || isNaN(location.lat) || isNaN(location.lng)) {
+      console.error("Invalid data:", { userId, name, fuel_types, location });
+      return ctx.editMessageText("❌ Noto'g'ri ma'lumotlar!", {
+        reply_markup: new InlineKeyboard().text("🔙 Bosh menyuga", "backToMenu")
+      });
+    }
+
+    try {
+      const user = await UserModel.findOne({ telegramId: userId });
+      if (!user) {
+        console.error("User not found:", userId);
+        return ctx.editMessageText("❌ Foydalanuvchi topilmadi!", {
+          reply_markup: new InlineKeyboard().text("🔙 Bosh menyuga", "backToMenu")
+        });
+      }
+
+      // Check for existing station with exact coordinates
+      const existingStation = await StationModel.findOne({
+        "location.lat": location.lat,
+        "location.lng": location.lng
+      });
+
+      if (existingStation) {
+        return ctx.editMessageText(
+          `❌ Ushbu joylashuvda (${location.lat}, ${location.lng}) allaqachon stansiya mavjud!\n\n` +
+          `🏷️ <b>Mavjud stansiya:</b> ${existingStation.name}\n` +
+          `🆔 <b>ID:</b> ${existingStation._id}\n` +
+          `📍 Iltimos, boshqa joylashuvni tanlang.`,
+          {
+            reply_markup: new InlineKeyboard()
+              .text("🔙 Joylashuvni qayta kiritish", "station_share_location")
+              .row()
+              .text("🔙 Bosh menyuga", "backToMenu"),
+            parse_mode: "HTML"
+          }
+        );
+      }
+
+      // For owner submissions, create as pending first for review
+      const newStation = await StationModel.create({
+        name,
+        fuel_types,
+        location,
+        owner: user._id,
+        status: "pending", // Changed to pending for review
+        isOwnerSubmission: true
+      });
+
+      console.log("Station created (pending review):", { id: newStation._id, name, location });
+
+      const createdAt = newStation.createdAt.toLocaleString('uz-UZ', {
+        timeZone: 'Asia/Tashkent',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      await ctx.editMessageText(
+        `✅ Stansiya ma'lumotlari yuborildi va ko'rib chiqilish uchun navbatga qo'shildi:\n\n` +
+        `🏷️ <b>Nomi:</b> ${name}\n` +
+        `⛽ <b>Yonilg'i turlari:</b> ${fuel_types.join(", ")}\n` +
+        `📍 <b>Koordinatalar:</b> ${location.lat}, ${location.lng}\n` +
+        `👤 <b>Qo'shgan:</b> ${userFirstName} (@${userUsername})\n` +
+        `📅 <b>Yuborilgan vaqti:</b> ${createdAt}\n` +
+        `🆔 <b>Tasdiq ID:</b> ${newStation._id}\n\n` +
+        `⏳ <b>Status:</b> Ko'rib chiqilmoqda\n\n` +
+        `📝 Egasi sifatida yuborilgan ma'lumotlar ham administratorlar tomonidan tekshiriladi va tasdiqlangandan so'ng tizimga qo'shiladi. Rahmat!`,
+        {
+          reply_markup: new InlineKeyboard().text("🔙 Bosh menyuga", "backToMenu"),
+          parse_mode: "HTML"
+        }
+      );            
+      
+      ctx.session.station = { name: "", fuel_types: [] };
+      ctx.session.step = undefined;
+      
+    } catch (error) {
+      console.error("Database error in ownership_confirm:", error);
+      await ctx.editMessageText("❌ Saqlashda xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.", {
+        reply_markup: new InlineKeyboard().text("🔙 Bosh menyuga", "backToMenu")
+      });
+    }
+    return ctx.answerCallbackQuery();
+  }
+
+  if (data === "ownership_deny") {
+    if (ctx.session.step !== "ownership") return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
+    
+    const { name, fuel_types, location } = ctx.session.station;
+    const userId = ctx.from?.id;
+    const userFirstName = ctx.from?.first_name || "Unknown";
+    const userUsername = ctx.from?.username || "no_username";
+
+    if (!userId || !name || !fuel_types.length || !location || isNaN(location.lat) || isNaN(location.lng)) {
+      console.error("Invalid data in ownership_deny:", { userId, name, fuel_types, location });
+      return ctx.editMessageText("❌ Noto'g'ri ma'lumotlar!", {
+        reply_markup: new InlineKeyboard().text("🔙 Bosh menyuga", "backToMenu")
+      });
+    }
+
+    try {
+      const user = await UserModel.findOne({ telegramId: userId });
+      if (!user) {
+        console.error("User not found in ownership_deny:", userId);
+        return ctx.editMessageText("❌ Foydalanuvchi topilmadi!", {
+          reply_markup: new InlineKeyboard().text("🔙 Bosh menyuga", "backToMenu")
+        });
+      }
+
+      // Check for existing station with exact coordinates
+      const existingStation = await StationModel.findOne({
+        "location.lat": location.lat,
+        "location.lng": location.lng
+      });
+
+      ctx.session.prevMenu = "fuel_menu";
+
+      if (existingStation) {
+        return ctx.editMessageText(
+          `❌ Ushbu joylashuvda (${location.lat}, ${location.lng}) allaqachon stansiya mavjud!\n\n` +
+          `🏷️ <b>Mavjud stansiya:</b> ${existingStation.name}\n` +
+          `🆔 <b>ID:</b> ${existingStation._id}\n\n` +
+          `📍 Iltimos, boshqa joylashuvni tanlang.`,
+          {
+            reply_markup: new InlineKeyboard()
+              .text("🔙 Joylashuvni qayta kiritish", "station_share_location")
+              .row()
+              .text("🔙 Bosh menyuga", "backToMenu"),
+            parse_mode: "HTML"
+          }
+        );        
+      }
+
+      const pendingStation = await StationModel.create({
+        name,
+        fuel_types,
+        location,
+        submittedBy: user._id,
+        status: "pending",
+        isOwnerSubmission: false
+      });
+
+      console.log("Pending station created:", { id: pendingStation._id, name, location });
+
+      const submittedAt = pendingStation.createdAt.toLocaleString("uz-UZ", {
+        timeZone: "Asia/Tashkent",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+
+      await ctx.editMessageText(
+        `✅ Rahmat! Ma'lumotlaringiz ko'rib chiqilish uchun yuborildi.\n\n` +
+        `🏷️ <b>Stansiya nomi:</b> ${name}\n` +
+        `⛽ <b>Yonilg'i turlari:</b> ${fuel_types.join(", ")}\n` +
+        `📍 <b>Koordinatalar:</b> ${location.lat}, ${location.lng}\n` +
+        `👤 <b>Yuborgan:</b> ${userFirstName} (@${userUsername})\n` +
+        `📅 <b>Yuborilgan vaqti:</b> ${submittedAt}\n` +
+        `🆔 <b>Tasdiq ID:</b> ${pendingStation._id}\n\n` +
+        `⏳ <b>Status:</b> Ko'rib chiqilmoqda\n\n` +
+        `📝 Administratorlar ma'lumotlarni tekshirib, tasdiqlangan stansiyalarni tizimga qo'shadi. Rahmat!`,
+        { 
+          reply_markup: new InlineKeyboard().text("🔙 Bosh menyuga", "backToMenu"),
+          parse_mode: "HTML"
+        }
+      );
+
+      ctx.session.station = { name: "", fuel_types: [] };
+      ctx.session.step = undefined;
+      
+    } catch (error) {
+      console.error("Database error in ownership_deny:", error);
+      await ctx.editMessageText("❌ Ma'lumotlarni yuborishda xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.", {
+        reply_markup: new InlineKeyboard().text("🔙 Bosh menyuga", "backToMenu")
+      });
+    }
+    return ctx.answerCallbackQuery();
+  }
+};

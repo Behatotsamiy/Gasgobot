@@ -3,7 +3,7 @@ import { UserModel } from "../Models/User.js";
 import { MyContext } from "../types.js";
 
 
-export const profileKeyboard = async (ctx: MyContext) => {
+export const profile = async (ctx: MyContext) => {
   ctx.answerCallbackQuery();
 
   const user = await UserModel.findOne({ telegramId: ctx.from?.id });

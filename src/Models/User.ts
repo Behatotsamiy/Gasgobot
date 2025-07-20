@@ -34,7 +34,7 @@ const UserSchema = new mongoose.Schema<User>({
     lat:{
       type: mongoose.SchemaTypes.Number
     }
-  }
+  },
 }, {
     timestamps: true,
     versionKey: false
