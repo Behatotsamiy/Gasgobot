@@ -57,8 +57,8 @@ export const handleAddStationName = async (ctx: MyContext) => {
   else if (step === "location") {
     const match = text.match(/^([-+]?\d*\.?\d+),\s*([-+]?\d*\.?\d+)$/);
     if (!match) {
-      return ctx.reply("❌ Noto'g'ri format! Misol: `41.3030, 69.2829`", { 
-        parse_mode: "Markdown" 
+      return ctx.reply("❌ Noto'g'ri format! Misol: <code>41.3030, 69.2829</code>", { 
+        parse_mode: "HTML" 
       });
     }
 
@@ -137,15 +137,15 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
         show_alert: true 
       });
     }
-
+    
     ctx.session.step = "location";
     await ctx.editMessageText("✅ Yonilg'i turlari saqlandi.");
     await ctx.reply(
       "📍 Stansiya joylashuvini yuboring:\n\n" +
-      "📝 **Koordinatalarni yozing**: `41.3030, 69.2829`\n" +
-      "📍 **Yoki pastdagi tugmani bosing**", 
+      "📝 <b>Koordinatalarni yozing</b>: <code>41.3030, 69.2829</code>\n" +
+      "📍 <b>Yoki pastdagi tugmani bosing</b>", 
       { 
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         reply_markup: getLocationInputKeyboard()
       }
     );
@@ -194,29 +194,30 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
       if (existingStation) {
         return ctx.editMessageText(
           `❌ Ushbu joylashuvda (${location.lat}, ${location.lng}) allaqachon stansiya mavjud!\n\n` +
-          `🏷️ **Mavjud stansiya:** ${existingStation.name}\n` +
-          `🆔 **ID:** ${existingStation._id}\n` +
+          `🏷️ <b>Mavjud stansiya:</b> ${existingStation.name}\n` +
+          `🆔 <b>ID:</b> ${existingStation._id}\n` +
           `📍 Iltimos, boshqa joylashuvni tanlang.`,
           {
             reply_markup: new InlineKeyboard()
               .text("🔙 Joylashuvni qayta kiritish", "station_share_location")
               .row()
               .text("🔙 Bosh menyuga", "backToMenu"),
-            parse_mode: "Markdown"
+            parse_mode: "HTML"
           }
         );
       }
 
+      // For owner submissions, create as pending first for review
       const newStation = await StationModel.create({
         name,
         fuel_types,
         location,
         owner: user._id,
-        status: "approved",
+        status: "pending", // Changed to pending for review
         isOwnerSubmission: true
       });
 
-      console.log("Station created (approved):", { id: newStation._id, name, location });
+      console.log("Station created (pending review):", { id: newStation._id, name, location });
 
       const createdAt = newStation.createdAt.toLocaleString('uz-UZ', {
         timeZone: 'Asia/Tashkent',
@@ -228,13 +229,15 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
       });
 
       await ctx.editMessageText(
-        `✅ Stansiya muvaffaqiyatli qo'shildi:\n\n` +
+        `✅ Stansiya ma'lumotlari yuborildi va ko'rib chiqilish uchun navbatga qo'shildi:\n\n` +
         `🏷️ <b>Nomi:</b> ${name}\n` +
         `⛽ <b>Yonilg'i turlari:</b> ${fuel_types.join(", ")}\n` +
         `📍 <b>Koordinatalar:</b> ${location.lat}, ${location.lng}\n` +
         `👤 <b>Qo'shgan:</b> ${userFirstName} (@${userUsername})\n` +
-        `📅 <b>Qo'shilgan vaqti:</b> ${createdAt}\n` +
-        `🆔 <b>Stansiya ID:</b> ${newStation._id}`,
+        `📅 <b>Yuborilgan vaqti:</b> ${createdAt}\n` +
+        `🆔 <b>Tasdiq ID:</b> ${newStation._id}\n\n` +
+        `⏳ <b>Status:</b> Ko'rib chiqilmoqda\n\n` +
+        `📝 Egasi sifatida yuborilgan ma'lumotlar ham administratorlar tomonidan tekshiriladi va tasdiqlangandan so'ng tizimga qo'shiladi. Rahmat!`,
         {
           reply_markup: new InlineKeyboard().text("🔙 Bosh menyuga", "backToMenu"),
           parse_mode: "HTML"
@@ -282,7 +285,9 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
         "location.lat": location.lat,
         "location.lng": location.lng
       });
-      ctx.session.prevMenu = "fuel_menu"
+
+      ctx.session.prevMenu = "fuel_menu";
+
       if (existingStation) {
         return ctx.editMessageText(
           `❌ Ushbu joylashuvda (${location.lat}, ${location.lng}) allaqachon stansiya mavjud!\n\n` +
@@ -321,13 +326,13 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
 
       await ctx.editMessageText(
         `✅ Rahmat! Ma'lumotlaringiz ko'rib chiqilish uchun yuborildi.\n\n` +
-        `🏷️ **Stansiya nomi:** ${name}\n` +
-        `⛽ **Yonilg'i turlari:** ${fuel_types.join(", ")}\n` +
-        `📍 **Koordinatalar:** ${location.lat}, ${location.lng}\n` +
-        `👤 **Yuborgan:** ${userFirstName} (@${userUsername})\n` +
-        `📅 **Yuborilgan vaqti:** ${submittedAt}\n` +
-        `🆔 **Tasdiq ID:** ${pendingStation._id}\n\n` +
-        `⏳ **Status:** Ko'rib chiqilmoqda\n\n` +
+        `🏷️ <b>Stansiya nomi:</b> ${name}\n` +
+        `⛽ <b>Yonilg'i turlari:</b> ${fuel_types.join(", ")}\n` +
+        `📍 <b>Koordinatalar:</b> ${location.lat}, ${location.lng}\n` +
+        `👤 <b>Yuborgan:</b> ${userFirstName} (@${userUsername})\n` +
+        `📅 <b>Yuborilgan vaqti:</b> ${submittedAt}\n` +
+        `🆔 <b>Tasdiq ID:</b> ${pendingStation._id}\n\n` +
+        `⏳ <b>Status:</b> Ko'rib chiqilmoqda\n\n` +
         `📝 Administratorlar ma'lumotlarni tekshirib, tasdiqlangan stansiyalarni tizimga qo'shadi. Rahmat!`,
         { 
           reply_markup: new InlineKeyboard().text("🔙 Bosh menyuga", "backToMenu"),

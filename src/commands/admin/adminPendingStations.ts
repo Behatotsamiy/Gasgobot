@@ -16,8 +16,19 @@ function escapeHTML(text: string = ""): string {
     .replace(/>/g, "&gt;");
 }
 
+// Helper function to notify user about station status
+async function notifyUser(ctx: MyContext, userId: string, message: string, stationName: string, action: 'approved' | 'rejected') {
+  try {
+    await ctx.api.sendMessage(userId, message, { parse_mode: "HTML" });
+    return true;
+  } catch (error) {
+    console.error(`❌ [NOTIFICATION ERROR] Failed to notify user ${userId} about station "${stationName}":`, error);
+    return false;
+  }
+}
+
 // List pending stations
-export const adminPendingStations = async (ctx: MyContext) => {
+export const adminPendingStations = async (ctx: MyContext) => {  
   try {
     await ctx.deleteMessage().catch(console.error);
 
@@ -74,7 +85,7 @@ export const adminPendingStations = async (ctx: MyContext) => {
       parse_mode: "HTML",
     });
   } catch (error) {
-    console.error("Error fetching pending stations:", error);
+    console.error("❌ [ERROR] Error fetching pending stations:", error);
     await ctx.reply("❌ Xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.", {
       reply_markup: new InlineKeyboard().text("🔙 Admin panel", "admin_panel:back"),
     });
@@ -83,6 +94,7 @@ export const adminPendingStations = async (ctx: MyContext) => {
 
 export const showStationReview = async (ctx: MyContext) => {
   const stationId = ctx.callbackQuery?.data?.split(":")[1];
+  
   if (!stationId) {
     return ctx.answerCallbackQuery({ text: "Stansiya ID topilmadi", show_alert: true });
   }
@@ -129,8 +141,9 @@ export const showStationReview = async (ctx: MyContext) => {
 
     await ctx.editMessageText(msg, { reply_markup: keyboard, parse_mode: "HTML" });
     await ctx.answerCallbackQuery({ text: "Stansiya ma'lumotlari yuklandi" });
+
   } catch (error) {
-    console.error("Error showing station review:", error);
+    console.error("❌ [ERROR] Error showing station review:", error);
     return ctx.answerCallbackQuery({ text: "Xatolik yuz berdi", show_alert: true });
   }
 };
@@ -138,11 +151,13 @@ export const showStationReview = async (ctx: MyContext) => {
 // Approve station
 export const approveStation = async (ctx: MyContext) => {
   const stationId = ctx.callbackQuery?.data?.split(":")[1];
+  
   if (!stationId) {
     return ctx.answerCallbackQuery({ text: "Stansiya ID topilmadi", show_alert: true });
   }
 
   try {
+    
     const station = await StationModel.findByIdAndUpdate(
       stationId,
       { status: "approved" },
@@ -153,7 +168,26 @@ export const approveStation = async (ctx: MyContext) => {
       return ctx.answerCallbackQuery({ text: "Stansiya topilmadi", show_alert: true });
     }
 
-    // Update the message
+    // Notify the user who submitted the station
+    if (station.submittedBy?.telegramId) {
+      
+      const notificationMessage = 
+        `🎉 <b>Ajoyib xabar!</b>\n\n` +
+        `✅ Siz yuborgan stansiya tasdiqlandi:\n` +
+        `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
+        `📍 <b>Joylashuv:</b> ${station.location.lat}, ${station.location.lng}\n` +
+        `⛽ <b>Yonilg'i turlari:</b> ${station.fuel_types.join(", ")}\n\n` +
+        `Stansiya endi xaritada ko'rsatiladi va boshqa foydalanuvchilar uni ko'rishlari mumkin. Hissangiz uchun rahmat! 🙏`;
+
+      const notificationSent = await notifyUser(
+        ctx, 
+        station.submittedBy.telegramId, 
+        notificationMessage, 
+        station.name, 
+        'approved'
+      );
+    } 
+    // Update the admin message
     await ctx.editMessageText(
       `✅ <b>Stansiya tasdiqlandi!</b>\n\n` +
       `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
@@ -170,8 +204,9 @@ export const approveStation = async (ctx: MyContext) => {
     );
 
     await ctx.answerCallbackQuery({ text: "Stansiya muvaffaqiyatli tasdiqlandi!" });
+    
   } catch (error) {
-    console.error("Error approving station:", error);
+    console.error("❌ [ERROR] Error approving station:", error);
     return ctx.answerCallbackQuery({ text: "Xatolik yuz berdi", show_alert: true });
   }
 };
@@ -179,11 +214,14 @@ export const approveStation = async (ctx: MyContext) => {
 // Reject station
 export const rejectStation = async (ctx: MyContext) => {
   const stationId = ctx.callbackQuery?.data?.split(":")[1];
+  
   if (!stationId) {
+    console.log(`⚠️ [REJECT] Station ID not found in callback data`);
     return ctx.answerCallbackQuery({ text: "Stansiya ID topilmadi", show_alert: true });
   }
 
   try {
+    
     const station = await StationModel.findByIdAndUpdate(
       stationId,
       { status: "rejected" },
@@ -191,10 +229,36 @@ export const rejectStation = async (ctx: MyContext) => {
     ).populate<{ submittedBy: Submitter }>("submittedBy", "telegramId first_name username");
 
     if (!station) {
+      console.log(`❌ [REJECT] Station not found for ID: ${stationId}`);
       return ctx.answerCallbackQuery({ text: "Stansiya topilmadi", show_alert: true });
     }
 
-    // Update the message
+    // Notify the user who submitted the station
+    if (station.submittedBy?.telegramId) {
+
+      const notificationMessage = 
+        `😔 <b>Afsuski...</b>\n\n` +
+        `❌ Siz yuborgan stansiya rad etildi:\n` +
+        `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
+        `📍 <b>Joylashuv:</b> ${station.location.lat}, ${station.location.lng}\n` +
+        `⛽ <b>Yonilg'i turlari:</b> ${station.fuel_types.join(", ")}\n\n` +
+        `Buni sabablari quyidagicha bo'lishi mumkin:\n` +
+        `• Ma'lumotlar noto'g'ri yoki aniq emas\n` +
+        `• Stansiya mavjud emas yoki yopiq\n` +
+        `• Takrorlangan ma'lumot\n\n` +
+        `Iltimos, to'g'ri ma'lumotlar bilan qaytadan urinib ko'ring. 📝`;
+
+      const notificationSent = await notifyUser(
+        ctx, 
+        station.submittedBy.telegramId, 
+        notificationMessage, 
+        station.name, 
+        'rejected'
+      );
+
+    } 
+
+    // Update the admin message
     await ctx.editMessageText(
       `❌ <b>Stansiya rad etildi!</b>\n\n` +
       `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
@@ -211,8 +275,9 @@ export const rejectStation = async (ctx: MyContext) => {
     );
 
     await ctx.answerCallbackQuery({ text: "Stansiya rad etildi!" });
+    
   } catch (error) {
-    console.error("Error rejecting station:", error);
+    console.error("❌ [ERROR] Error rejecting station:", error);
     return ctx.answerCallbackQuery({ text: "Xatolik yuz berdi", show_alert: true });
   }
 };
@@ -220,6 +285,7 @@ export const rejectStation = async (ctx: MyContext) => {
 // View station location on map
 export const viewStationLocation = async (ctx: MyContext) => {
   const locationData = ctx.callbackQuery?.data?.split(":")[1];
+  
   if (!locationData) {
     return ctx.answerCallbackQuery({ text: "Koordinatalar topilmadi", show_alert: true });
   }
@@ -235,8 +301,9 @@ export const viewStationLocation = async (ctx: MyContext) => {
     await ctx.replyWithLocation(parseFloat(lat), parseFloat(lng));
     
     await ctx.answerCallbackQuery({ text: "Joylashuv yuborildi!" });
+    
   } catch (error) {
-    console.error("Error sending location:", error);
+    console.error("❌ [ERROR] Error sending location:", error);
     return ctx.answerCallbackQuery({ text: "Xatolik yuz berdi", show_alert: true });
   }
 };

@@ -2,7 +2,6 @@ import { MyContext } from "../types.js";
 import { cancelBroadcast } from "../commands/broadcast/cancel.js";
 import { confirmBroadcast } from "../commands/broadcast/confirm.js";
 import {
-  locationKeyboard,
   backToMenuKeyboard,
   donateKeyboard,
   moneyKeyboard,
@@ -54,6 +53,7 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   gas_info: gasInfo,
   time: stationTime,
   station_statics: stationStats,
+  "station_share_location": handleStationCallbacks,
 
   // 🔒 Admin-only
   admin_panel: requireAdmin(admin),
