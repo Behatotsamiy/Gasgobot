@@ -17,7 +17,7 @@ import { handleAddStationName, handleStationCallbacks, handleStationLocation } f
 
 dotenv.config();
 const Key = process.env.BOT_TOKEN;
-const mongo_uri: string = process.env.MONGO_URI;
+const mongo_uri: string =`mongodb+srv://bahtiyorov757:password757@cluster0.ycr0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 if (!Key) throw new Error("BOT_TOKEN is not defined in .env file");
 if (!mongo_uri) throw new Error("MONGO_URI is not defined in .env file");
