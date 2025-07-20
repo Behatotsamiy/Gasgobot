@@ -1,4 +1,4 @@
-import "dotenv/config";
+import dotenv from "dotenv";
 import { Bot, InlineKeyboard } from "grammy";
 import { GrammyError, HttpError, session } from "grammy";
 import mongoose from "mongoose";
@@ -13,8 +13,9 @@ import {
 import { HandleCallbackQuery } from "./handlers/callbackHandlers.ts";
 import { broadcastMap } from "./utils/broadcastMap.ts";
 import { Station_Admin } from "./commands/stationAdmin/stationAdmin.ts";
-import { handleAddStationName, handleStationCallbacks } from "./keyboards/addStation.ts"
+import { handleAddStationName, handleStationCallbacks, handleStationLocation } from "./keyboards/addStation.ts"
 
+dotenv.config();
 const Key = process.env.BOT_TOKEN;
 const mongo_uri: string = process.env.MONGO_URI;
 
@@ -42,8 +43,10 @@ bot.command("ishla", Station_Admin);
 
 // 📍 Handle location messages
 bot.on("message:location", async (ctx) => {
-  if (ctx.session.step === "station_location") {
-    return handleStationCallbacks(ctx);
+  // First check if we're in station creation mode
+  if (ctx.session.step === "location") {
+    const handled = await handleStationLocation(ctx);
+    if (handled) return; 
   }
 
   return locationKeyboard(ctx);
@@ -74,15 +77,6 @@ bot.on("message:text", async (ctx, next) => {
 
 // 🏷 Add station name
 bot.on("message:text", handleAddStationName);
-
-// ⛽️ Fuel selection
-bot.callbackQuery(/^fuel/, async (ctx) => {
-  if (ctx.session.step === "fuel") {
-    await handleFuelSelection(ctx);
-  } else {
-    await findStation(ctx);
-  }
-});
 
 // ☎️ Contact handler
 bot.on("message:contact", async (ctx) => {
