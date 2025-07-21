@@ -2,8 +2,9 @@ import { MyContext } from "../types.js";
 import { StationModel } from "../Models/Station.js";
 import { UserModel } from "../Models/User.js";
 import { InlineKeyboard } from "grammy";
+import {ADMINS} from "../utils/requireAdmin.ts"
 
-const fuelTypes = ["AI-80", "AI-90", "AI-91", "AI-92", "AI-98", "AI-100", "AI-102", "Dizel", "Metan", "Propan", "Elektrik"];
+const fuelTypes = ["AI-80", "AI-91", "AI-92", "AI-95", "AI-98", "Dizel", "Metan", "Propan", "Elektrik"];
 
 const getFuelKeyboard = (selected: string[]) => ({
   inline_keyboard: [
@@ -18,7 +19,7 @@ const getFuelKeyboard = (selected: string[]) => ({
 
 const getOwnershipKeyboard = () => new InlineKeyboard()
   .text("✅ Ha, men egasiman", "ownership_confirm")
-  .text("❌ Yo'q, men egasi emasman", "ownership_deny")
+  .text("❌ Yo'q, ega emasman", "ownership_deny")
   .text("🔙 Orqaga", "backToMenu");
 
 const getLocationInputKeyboard = () => new InlineKeyboard()
@@ -74,7 +75,7 @@ export const handleAddStationName = async (ctx: MyContext) => {
     
     await ctx.reply(
       "🏢 Siz bu stansiyaning egasi yoki rahbari sifatida qo'shyapsizmi?\n\n" +
-      "⚠️ Faqat rasmiy egalar yoki vakolatli shaxslar stansiya ma'lumotlarini qo'sha oladi.",
+      "Iltimos agar siz shaxobcha ishchisi/egasi/rahbari bo'lmasangiz, shaxobcha ishchilariga bot haqida aytsangiz mamnun bolar edik!",
       { reply_markup: getOwnershipKeyboard() }
     );
   }
@@ -94,7 +95,7 @@ export const handleStationLocation = async (ctx: MyContext) => {
   await ctx.reply(
     `✅ Stansiya joylashuvi saqlandi: ${latitude}, ${longitude}\n\n` +
     "🏢 Siz bu stansiyaning egasi yoki rahbari sifatida qo'shyapsizmi?\n\n" +
-    "⚠️ Faqat rasmiy egalar yoki vakolatli shaxslar stansiya ma'lumotlarini qo'sha oladi.",
+    "Iltimos agar siz shaxobcha ishchisi/egasi/rahbari bo'lmasangiz, shaxobcha ishchilariga bot haqida aytsangiz mamnun bolar edik!",
     { reply_markup: getOwnershipKeyboard() }
   );
   
@@ -143,23 +144,23 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
     await ctx.reply(
       "📍 Stansiya joylashuvini yuboring:\n\n" +
       "📝 <b>Koordinatalarni yozing</b>: <code>41.3030, 69.2829</code>\n" +
-      "📍 <b>Yoki pastdagi tugmani bosing</b>", 
+      "📍 <b>Yoki lokatsiyani jo'nating</b>", 
       { 
-        parse_mode: "HTML",
-        reply_markup: getLocationInputKeyboard()
+        parse_mode: "HTML"
       }
     );
     return ctx.answerCallbackQuery();
   }
 
   if (data === "station_share_location") {
-    if (!ctx.session || ctx.session.step !== "location") {
-      return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
-    }
-    
-    await ctx.editMessageText("📍 Stansiya joylashuvini yuboring:");
+    ctx.session.step = "location"; // ✅ Forcefully set to location step
+    await ctx.editMessageText("📍 Stansiya joylashuvini yuboring:\n\n" +
+      "📝 <b>Koordinatalarni yozing</b>: <code>41.3030, 69.2829</code>\n" +
+      "📍 <b>Yoki lokatsiyani yuboring</b>", 
+      { parse_mode: "HTML" });
     return ctx.answerCallbackQuery();
   }
+  
 
   if (data === "ownership_confirm") {
     if (ctx.session.step !== "ownership") return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
@@ -192,6 +193,7 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
       });
 
       if (existingStation) {
+        ctx.session.step = "location"; // ✅ Reset step so user can re-enter coordinates
         return ctx.editMessageText(
           `❌ Ushbu joylashuvda (${location.lat}, ${location.lng}) allaqachon stansiya mavjud!\n\n` +
           `🏷️ <b>Mavjud stansiya:</b> ${existingStation.name}\n` +
@@ -206,6 +208,7 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
           }
         );
       }
+      
 
       // For owner submissions, create as pending first for review
       const newStation = await StationModel.create({
@@ -242,7 +245,23 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
           reply_markup: new InlineKeyboard().text("🔙 Bosh menyuga", "backToMenu"),
           parse_mode: "HTML"
         }
-      );            
+      ); 
+      for (const adminId of ADMINS) {
+        try {
+          await ctx.api.sendMessage(adminId,
+            "🆕 Yangi stansiya qo‘shilishga yuborildi, iltimos menyuga o‘tib tekshiring.",
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "✅ Tekshirish", callback_data: "admin_pending" }]
+                ]
+              }
+            }
+          );
+        } catch (err) {
+          console.error("Admin notification failed:", err);
+        }
+      }           
       
       ctx.session.station = { name: "", fuel_types: [] };
       ctx.session.step = undefined;
@@ -339,6 +358,22 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
           parse_mode: "HTML"
         }
       );
+      for (const adminId of ADMINS) {
+        try {
+          await ctx.api.sendMessage(adminId,
+            "🆕 Yangi stansiya qo‘shilishga yuborildi, iltimos menyuga o‘tib tekshiring.",
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "✅ Tekshirish", callback_data: "admin_pending" }]
+                ]
+              }
+            }
+          );
+        } catch (err) {
+          console.error("Admin notification failed:", err);
+        }
+      }
 
       ctx.session.station = { name: "", fuel_types: [] };
       ctx.session.step = undefined;
