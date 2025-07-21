@@ -94,22 +94,23 @@ export const adminPendingStations = async (ctx: MyContext) => {
 
 export const showStationReview = async (ctx: MyContext) => {
   const stationId = ctx.callbackQuery?.data?.split(":")[1];
-  
+
   if (!stationId) {
     return ctx.answerCallbackQuery({ text: "Stansiya ID topilmadi", show_alert: true });
   }
 
   try {
-    const station = await StationModel.findById(stationId).populate<{ submittedBy: Submitter }>(
+    const station = await StationModel.findById(stationId).populate<{ submittedBy?: Submitter }>(
       "submittedBy",
       "telegramId first_name username"
     );
 
-    if (!station || !station.submittedBy) {
-      return ctx.answerCallbackQuery({ text: "Stansiya yoki yuboruvchi topilmadi", show_alert: true });
+    if (!station) {
+      return ctx.answerCallbackQuery({ text: "Stansiya topilmadi", show_alert: true });
     }
 
     const submitter = station.submittedBy;
+
     const submittedAt = new Date(station.createdAt).toLocaleString("uz-UZ", {
       timeZone: "Asia/Tashkent",
       year: "numeric",
@@ -124,7 +125,11 @@ export const showStationReview = async (ctx: MyContext) => {
       `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
       `⛽ <b>Yonilg'i turlari:</b> ${station.fuel_types.join(", ")}\n` +
       `📍 <b>Koordinatalar:</b> ${station.location.lat}, ${station.location.lng}\n` +
-      `👤 <b>Yuboruvchi:</b> ${escapeHTML(submitter.first_name)} (@${escapeHTML(submitter.username || "username_yoq")})\n` +
+      `👤 <b>Yuboruvchi:</b> ${
+        submitter
+          ? `${escapeHTML(submitter.first_name)} (@${escapeHTML(submitter.username || "username_yoq")})`
+          : "Noma'lum foydalanuvchi"
+      }\n` +
       `📅 <b>Yuborilgan vaqt:</b> ${submittedAt}\n` +
       `🆔 <b>ID:</b> ${station._id}\n` +
       `📊 <b>Status:</b> ${station.status}\n` +
@@ -139,7 +144,11 @@ export const showStationReview = async (ctx: MyContext) => {
       .row()
       .text("🔙 Orqaga", "admin_pending");
 
-    await ctx.editMessageText(msg, { reply_markup: keyboard, parse_mode: "HTML" });
+    await ctx.editMessageText(msg, {
+      reply_markup: keyboard,
+      parse_mode: "HTML",
+    });
+
     await ctx.answerCallbackQuery({ text: "Stansiya ma'lumotlari yuklandi" });
 
   } catch (error) {
@@ -222,11 +231,20 @@ export const rejectStation = async (ctx: MyContext) => {
 
   try {
     
-    const station = await StationModel.findByIdAndUpdate(
-      stationId,
-      { status: "rejected" },
-      { new: true }
-    ).populate<{ submittedBy: Submitter }>("submittedBy", "telegramId first_name username");
+    const station = await StationModel.findById(stationId).populate<{ submittedBy: Submitter }>(
+      "submittedBy",
+      "telegramId first_name username"
+    );
+    
+    if (!station) {
+      console.log(`❌ [REJECT] Station not found for ID: ${stationId}`);
+      return ctx.answerCallbackQuery({ text: "Stansiya topilmadi", show_alert: true });
+    }
+    
+    // Save submitter info before deletion
+    const submitter = station.submittedBy;
+    await StationModel.findByIdAndDelete(stationId);
+    
 
     if (!station) {
       console.log(`❌ [REJECT] Station not found for ID: ${stationId}`);

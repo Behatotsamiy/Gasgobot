@@ -1,7 +1,8 @@
 // utils/requireAdmin.ts
 import { MyContext } from "../types.js";
 
-const ADMINS = [5370588246, 7244995341, 2093756924, 1643505035];
+export const ADMINS = [5370588246, 7244995341, 2093756924, 1643505035];
+// 1.@otabekovich_bb 2.Oscar 3.BALTUN 4. @abidov
 
 export function requireAdmin(handler: (ctx: MyContext) => Promise<unknown>) {
   return async (ctx: MyContext) => {

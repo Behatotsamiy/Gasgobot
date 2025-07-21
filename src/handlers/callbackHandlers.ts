@@ -11,14 +11,13 @@ import {
   showFuelSelection,
   location_change,
   locationChangeAccept,
+  stationAdmin_Keyboard,
 } from "../keyboards/_index.js";
 import {
   stationInfo,
   stationChange,
-  stationStats,
-  stationTime,
-  pricelist,
-  gasInfo,
+  userStationInfo,
+  deleteStation,
 } from "../commands/stationAdmin/stationAdminsCommands.js";
 
 import { profile } from "../commands/profile.js";
@@ -35,6 +34,8 @@ import {
   rejectStation, 
   viewStationLocation 
 } from "../commands/admin/adminPendingStations.ts";
+import { Station_Admin } from "../commands/stationAdmin/stationAdmin.ts";
+import { editStation } from "../keyboards/manageStations.ts";
 
 const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   profile,
@@ -46,13 +47,12 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   "location:yes": locationChangeAccept,
   
   // Station management
+  station_name_change: editStation,
+  station_gas_change: editStation,
+  station_location_change: editStation,
   addStationKB: addStation,
   station_info: stationInfo,
   station_change: stationChange,
-  pricelist: pricelist,
-  gas_info: gasInfo,
-  time: stationTime,
-  station_statics: stationStats,
   "station_share_location": handleStationCallbacks,
 
   // 🔒 Admin-only
@@ -70,6 +70,11 @@ export async function HandleCallbackQuery(ctx: MyContext) {
   if (!data) return;
 
   try {
+    if(data === "station_admin"){
+      await ctx.deleteMessage()
+      ctx.session.step = "station_menu";
+      return stationAdmin_Keyboard(ctx)
+    }
     // ✅ Handle station management callbacks FIRST (centralized)
     if (data.startsWith("fuel_select:") || 
         data === "fuel_done" || 
@@ -82,6 +87,16 @@ export async function HandleCallbackQuery(ctx: MyContext) {
     const handler = callbackHandlers[data];
     if (handler) {
       return await handler(ctx);
+    }
+    
+    if (data.startsWith("user_station_info:")) {
+      return await userStationInfo(ctx);
+    }
+    if (data.startsWith("edit_station:")) {
+      return await stationChange(ctx);
+    }
+    if (data.startsWith("delete_station:")) {
+      return await deleteStation(ctx);
     }
 
     // ✅ Handle admin users pagination
