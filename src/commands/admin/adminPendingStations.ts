@@ -222,11 +222,20 @@ export const rejectStation = async (ctx: MyContext) => {
 
   try {
     
-    const station = await StationModel.findByIdAndUpdate(
-      stationId,
-      { status: "rejected" },
-      { new: true }
-    ).populate<{ submittedBy: Submitter }>("submittedBy", "telegramId first_name username");
+    const station = await StationModel.findById(stationId).populate<{ submittedBy: Submitter }>(
+      "submittedBy",
+      "telegramId first_name username"
+    );
+    
+    if (!station) {
+      console.log(`❌ [REJECT] Station not found for ID: ${stationId}`);
+      return ctx.answerCallbackQuery({ text: "Stansiya topilmadi", show_alert: true });
+    }
+    
+    // Save submitter info before deletion
+    const submitter = station.submittedBy;
+    await StationModel.findByIdAndDelete(stationId);
+    
 
     if (!station) {
       console.log(`❌ [REJECT] Station not found for ID: ${stationId}`);

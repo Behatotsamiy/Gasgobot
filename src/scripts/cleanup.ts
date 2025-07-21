@@ -16,10 +16,10 @@ async function cleanup() {
     console.log("✅ Connected to MongoDB");
 
     const result = await StationModel.deleteMany({
-      name: { $regex: /test/i }  // case-insensitive match
+      status: { $in: ["rejected", "pending"] }
     });
-
-    console.log(`🧹 Deleted ${result.deletedCount} broken stations`);
+    
+    console.log(`🧹 Deleted ${result.deletedCount} non-approved stations`);
 
     await mongoose.disconnect();
     process.exit(0);
