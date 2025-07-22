@@ -27,12 +27,12 @@ import { adminUsersHandler } from "../commands/admin/users.js";
 import { BacktoAdmin } from "../commands/admin/back.js";
 import { AdminBroadcast } from "../commands/admin/broadcast.js";
 import { requireAdmin } from "../utils/requireAdmin.js";
-import { 
-  adminPendingStations, 
-  showStationReview, 
-  approveStation, 
-  rejectStation, 
-  viewStationLocation 
+import {
+  adminPendingStations,
+  showStationReview,
+  approveStation,
+  rejectStation,
+  viewStationLocation,
 } from "../commands/admin/adminPendingStations.ts";
 import { Station_Admin } from "../commands/stationAdmin/stationAdmin.ts";
 import { editStation } from "../keyboards/manageStations.ts";
@@ -45,7 +45,7 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   "menu:fuel": showFuelSelection,
   location_change: location_change,
   "location:yes": locationChangeAccept,
-  
+
   // Station management
   station_name_change: editStation,
   station_gas_change: editStation,
@@ -53,7 +53,7 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   addStationKB: addStation,
   station_info: stationInfo,
   station_change: stationChange,
-  "station_share_location": handleStationCallbacks,
+  station_share_location: handleStationCallbacks,
 
   // 🔒 Admin-only
   admin_panel: requireAdmin(admin),
@@ -70,16 +70,36 @@ export async function HandleCallbackQuery(ctx: MyContext) {
   if (!data) return;
 
   try {
-    if(data === "station_admin"){
-      await ctx.deleteMessage()
+    if (data === "station_admin") {
+      await ctx.deleteMessage();
       ctx.session.step = "station_menu";
-      return stationAdmin_Keyboard(ctx)
+      return stationAdmin_Keyboard(ctx);
     }
+
+
+
+    
+    // ✅ Catch editStation related callbacks with ID
+    if (
+      data.startsWith("station_name_change:") ||
+      data.startsWith("station_gas_change:") ||
+      data.startsWith("station_location_change:") ||
+      data.startsWith("edit_station:")
+    ) {
+      const id = data.split(":")[1];
+      return await editStation(ctx, id);
+    }
+
+
+
+
     // ✅ Handle station management callbacks FIRST (centralized)
-    if (data.startsWith("fuel_select:") || 
-        data === "fuel_done" || 
-        data === "ownership_confirm" || 
-        data === "ownership_deny") {
+    if (
+      data.startsWith("fuel_select:") ||
+      data === "fuel_done" ||
+      data === "ownership_confirm" ||
+      data === "ownership_deny"
+    ) {
       return await handleStationCallbacks(ctx);
     }
 
@@ -88,7 +108,7 @@ export async function HandleCallbackQuery(ctx: MyContext) {
     if (handler) {
       return await handler(ctx);
     }
-    
+
     if (data.startsWith("user_station_info:")) {
       return await userStationInfo(ctx);
     }
@@ -123,7 +143,7 @@ export async function HandleCallbackQuery(ctx: MyContext) {
     if (data.startsWith("view_location:")) {
       return await viewStationLocation(ctx);
     }
-        
+
     // ✅ Handle fuel search (when NOT in station creation)
     if (/^fuel:.+/.test(data)) {
       return await findStation(ctx);
@@ -131,12 +151,15 @@ export async function HandleCallbackQuery(ctx: MyContext) {
 
     // ✅ Log unknown callbacks for debugging
     console.warn(`Unknown callback data: ${data}`);
-    return await ctx.answerCallbackQuery({ text: "Unknown action", show_alert: true });
+    return await ctx.answerCallbackQuery({
+      text: "Unknown action",
+      show_alert: true,
+    });
   } catch (error) {
     console.error("Error handling callback query:", error);
-    return await ctx.answerCallbackQuery({ 
-      text: "Xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.", 
-      show_alert: true 
+    return await ctx.answerCallbackQuery({
+      text: "Xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.",
+      show_alert: true,
     });
   }
 }

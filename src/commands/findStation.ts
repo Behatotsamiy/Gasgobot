@@ -72,7 +72,7 @@ export const findStation = async (ctx: MyContext) => {
       );
     }
 
-    const stations = await StationModel.find({ fuel_types: fuel, status: "approved" });
+    const stations = await StationModel.find({ fuel_types: fuel});
 
     if (!stations.length) {
       return ctx.reply("⛽ Bu turdagi yoqilg'i uchun stansiyalar topilmadi.", {
@@ -126,7 +126,7 @@ export const findStation = async (ctx: MyContext) => {
       station.location.lat,
       station.location.lng
     );
-    ctx.session.lastLocationMsgId = locMsg.message_id;
+    ctx.session.lastLocationMsgId = locMsg.message_id
 
     const keyboard = new InlineKeyboard();
 

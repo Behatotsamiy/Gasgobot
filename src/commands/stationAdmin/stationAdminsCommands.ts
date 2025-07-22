@@ -44,7 +44,7 @@ export const stationChange = async (ctx: MyContext) => {
   if (!station) {
     return ctx.reply("❌ Stansiya topilmadi");
   }
-  return editStation(ctx , station._id)
+  return editStation(ctx , station?._id)
 };
 
 export const deleteStation = async (ctx: MyContext) => {

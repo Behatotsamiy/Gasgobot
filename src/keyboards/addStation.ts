@@ -110,7 +110,7 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
     if (ctx.session.step !== "fuel") return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
     
     const fuelType = data.split(":")[1];
-    const currentFuels = ctx.session.station.fuel_types || [];
+    const currentFuels = ctx.session?.station?.fuel_types || [];
 
     if (currentFuels.includes(fuelType)) {
       ctx.session.station.fuel_types = currentFuels.filter(f => f !== fuelType);
