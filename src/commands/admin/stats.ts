@@ -4,7 +4,7 @@ import { InlineKeyboard } from "grammy";
 import { MyContext } from "../../types.ts";
 
 export async function Stats(ctx:MyContext){
-    const mongo_uri = process.env.MONGO_URI
+    const mongo_uri = `mongodb+srv://bahtiyorov757:password757@cluster0.ycr0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
     try {
         await mongoose.connect(mongo_uri);
     
