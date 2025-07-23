@@ -72,7 +72,7 @@ export const findStation = async (ctx: MyContext) => {
       );
     }
 
-    const stations = await StationModel.find({ fuel_types: fuel, status: "approved" });
+    const stations = await StationModel.find({ fuel_types: fuel});
 
     if (!stations.length) {
       return ctx.reply("⛽ Bu turdagi yoqilg'i uchun stansiyalar topilmadi.", {

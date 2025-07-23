@@ -1,4 +1,4 @@
-import { MyContext } from "../types.js";
+import { MyContext } from './../types.js';
 import { cancelBroadcast } from "../commands/broadcast/cancel.js";
 import { confirmBroadcast } from "../commands/broadcast/confirm.js";
 import {
@@ -37,6 +37,9 @@ import {
 import { Station_Admin } from "../commands/stationAdmin/stationAdmin.ts";
 import { editStation } from "../keyboards/manageStations.ts";
 
+// Import your edit fuel handlers (you'll need to create these)
+import { handleEditFuelSelection, handleFuelDone } from "../keyboards/manageStations.ts";
+
 const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   profile,
   backToMenu: backToMenuKeyboard,
@@ -47,13 +50,14 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   "location:yes": locationChangeAccept,
   
   // Station management
-  station_name_change: editStation,
-  station_gas_change: editStation,
-  station_location_change: editStation,
+  fuel_changed: editStation,
   addStationKB: addStation,
   station_info: stationInfo,
   station_change: stationChange,
   "station_share_location": handleStationCallbacks,
+
+  // Edit fuel handlers
+  edit_fuel_complete: handleFuelDone,
 
   // 🔒 Admin-only
   admin_panel: requireAdmin(admin),
@@ -75,7 +79,14 @@ export async function HandleCallbackQuery(ctx: MyContext) {
       ctx.session.step = "station_menu";
       return stationAdmin_Keyboard(ctx)
     }
-    // ✅ Handle station management callbacks FIRST (centralized)
+
+    // ✅ Handle station EDITING fuel selection (completely separate from creation)
+    if (data.startsWith("edit_fuel_select:")) {
+      const fuelType = data.split(":")[1];
+      return await handleEditFuelSelection(ctx, fuelType);
+    }
+
+    // ✅ Handle station management callbacks for CREATION (centralized)
     if (data.startsWith("fuel_select:") || 
         data === "fuel_done" || 
         data === "ownership_confirm" || 
@@ -99,37 +110,40 @@ export async function HandleCallbackQuery(ctx: MyContext) {
       return await deleteStation(ctx);
     }
 
-    // ✅ Handle admin users pagination
+    if (data.startsWith("station_name_change:")) {
+      return await stationChange(ctx);
+    }
+    if (data.startsWith("station_gas_change:")) {
+      return await stationChange(ctx);
+    }
+    if (data.startsWith("station_location_change:")) {
+      return await stationChange(ctx);
+    }
+
     if (/^admin_users(\?page=\d+)?$/.test(data)) {
       return await requireAdmin(adminUsersHandler)(ctx);
     }
 
-    // ✅ Handle pending station review (admin-only)
     if (data.startsWith("pending_review:")) {
       return await requireAdmin(showStationReview)(ctx);
     }
 
-    // ✅ Handle station approval (admin-only)
     if (data.startsWith("approve_station:")) {
       return await requireAdmin(approveStation)(ctx);
     }
 
-    // ✅ Handle station rejection (admin-only)
     if (data.startsWith("reject_station:")) {
       return await requireAdmin(rejectStation)(ctx);
     }
 
-    // ✅ Handle view location on map
     if (data.startsWith("view_location:")) {
       return await viewStationLocation(ctx);
     }
-        
-    // ✅ Handle fuel search (when NOT in station creation)
+
     if (/^fuel:.+/.test(data)) {
       return await findStation(ctx);
     }
 
-    // ✅ Log unknown callbacks for debugging
     console.warn(`Unknown callback data: ${data}`);
     return await ctx.answerCallbackQuery({ text: "Unknown action", show_alert: true });
   } catch (error) {

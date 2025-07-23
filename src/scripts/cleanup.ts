@@ -16,8 +16,9 @@ async function cleanup() {
     console.log("✅ Connected to MongoDB");
 
     const result = await StationModel.deleteMany({
-      status: { $in: ["rejected", "pending"] }
+      name: /test/i
     });
+    
     
     console.log(`🧹 Deleted ${result.deletedCount} non-approved stations`);
 

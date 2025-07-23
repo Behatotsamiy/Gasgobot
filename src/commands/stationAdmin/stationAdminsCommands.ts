@@ -21,15 +21,15 @@ export async function stationInfo(ctx: MyContext) {
     await ctx.reply("Sizning registratsiyadan o'tgan shaxobchangiz yo'q");
     return wantTo_AddStantion(ctx);
   }
-
   for (const station of stations) {
-    StaitonShort(station.name , station._id , ctx)
+    await StaitonShort(station.name , station._id , ctx)
   }
+  return wantTo_AddStantion(ctx);
 }
 export const userStationInfo = async (ctx: MyContext) => {
   const stationId = ctx.callbackQuery?.data?.split(":")[1];
   await ctx.answerCallbackQuery();
-
+  
   const station = await StationModel.findById(stationId);
   if (!station) {
     return ctx.reply("❌ Stansiya topilmadi");
@@ -37,6 +37,7 @@ export const userStationInfo = async (ctx: MyContext) => {
   return Stationlong(station , ctx)
 };
 export const stationChange = async (ctx: MyContext) => {
+  const call = ctx.callbackQuery?.data?.split(":")[0]
   const stationId = ctx.callbackQuery?.data?.split(":")[1];
   await ctx.answerCallbackQuery();
 
@@ -44,7 +45,7 @@ export const stationChange = async (ctx: MyContext) => {
   if (!station) {
     return ctx.reply("❌ Stansiya topilmadi");
   }
-  return editStation(ctx , station._id)
+  return editStation(ctx , station._id , call)
 };
 
 export const deleteStation = async (ctx: MyContext) => {
