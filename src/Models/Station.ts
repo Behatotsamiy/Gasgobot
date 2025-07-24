@@ -14,6 +14,11 @@ export interface Station extends Document {
   createdAt: Date;
   reviewedAt?: Date;
   reviewedBy?: ObjectId;
+  busyness?: {
+    level: "green" | "orange" | "red";
+    updatedAt: Date;
+    expiresAt?: Date;
+  };
 }
 
 const StationSchema = new mongoose.Schema<Station>(
@@ -59,6 +64,21 @@ const StationSchema = new mongoose.Schema<Station>(
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+    busyness: {
+      level: {
+        type: String,
+        enum: ["green", "orange", "red"],
+        required: true,
+        default: "green",
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now,
+      },
+      expiresAt: {
+        type: Date,
+      },
     },
   },
   {

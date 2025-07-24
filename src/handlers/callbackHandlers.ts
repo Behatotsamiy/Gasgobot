@@ -39,6 +39,7 @@ import { editStation } from "../keyboards/manageStations.ts";
 
 // Import your edit fuel handlers (you'll need to create these)
 import { handleEditFuelSelection, handleFuelDone } from "../keyboards/manageStations.ts";
+import { Busyness, BusynessMain, ChangeBusyness } from '../commands/stationAdmin/busyness.ts';
 
 const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   profile,
@@ -50,6 +51,7 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   "location:yes": locationChangeAccept,
   
   // Station management
+  busyness: BusynessMain,
   fuel_changed: editStation,
   addStationKB: addStation,
   station_info: stationInfo,
@@ -93,6 +95,14 @@ export async function HandleCallbackQuery(ctx: MyContext) {
         data === "ownership_deny") {
       return await handleStationCallbacks(ctx);
     }
+    if (data.startsWith("station_busyness:")) {
+      return await Busyness(ctx);
+    }
+    
+    if (data.startsWith("busyness_set:")) {
+      return await ChangeBusyness(ctx);
+    }
+    
 
     // ✅ Handle exact match for other callbacks
     const handler = callbackHandlers[data];
