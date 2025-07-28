@@ -6,6 +6,7 @@ import { InlineKeyboard } from "grammy";
 import { wantTo_AddStantion } from "../../keyboards/wantToAddStantion.ts";
 import { StaitonShort, Stationlong, editStation } from "../../keyboards/manageStations.ts";
 
+
 export async function stationInfo(ctx: MyContext) {
   await ctx.answerCallbackQuery();
   ctx.session.prevMenu = "station_menu";
@@ -18,35 +19,51 @@ export async function stationInfo(ctx: MyContext) {
   const stations = await StationModel.find({ owner: user._id });
 
   if (stations.length < 1) {
-    await ctx.reply("Sizning registratsiyadan o'tgan shaxobchangiz yo'q");
+    try {
+      await ctx.deleteMessage();
+    } catch (_) {}
+
+    ctx.session.step = "confirm_add_station";
     return wantTo_AddStantion(ctx);
   }
+
   for (const station of stations) {
-    await StaitonShort(station.name , station._id , ctx)
+    await StaitonShort(station.name, station._id, ctx);
   }
+
+  ctx.session.step = "add_another_station"; // optional: can differentiate state
   return wantTo_AddStantion(ctx);
 }
+
+
 export const userStationInfo = async (ctx: MyContext) => {
   const stationId = ctx.callbackQuery?.data?.split(":")[1];
   await ctx.answerCallbackQuery();
-  
+
   const station = await StationModel.findById(stationId);
   if (!station) {
+    try {
+      await ctx.deleteMessage();
+    } catch (_) {}
     return ctx.reply("❌ Stansiya topilmadi");
   }
-  return Stationlong(station , ctx)
+  return Stationlong(station , ctx);
 };
+
 export const stationChange = async (ctx: MyContext) => {
-  const call = ctx.callbackQuery?.data?.split(":")[0]
+  const call = ctx.callbackQuery?.data?.split(":")[0];
   const stationId = ctx.callbackQuery?.data?.split(":")[1];
   await ctx.answerCallbackQuery();
-  await ctx.deleteMessage()
+
+  try {
+    await ctx.deleteMessage();
+  } catch (_) {}
 
   const station = await StationModel.findById(stationId);
   if (!station) {
     return ctx.reply("❌ Stansiya topilmadi");
   }
-  return editStation(ctx , station._id , call)
+  return editStation(ctx , station._id , call);
 };
 
 export const deleteStation = async (ctx: MyContext) => {
@@ -57,7 +74,9 @@ export const deleteStation = async (ctx: MyContext) => {
   if (!station) return ctx.reply("❌ Stansiya topilmadi");
 
   await station.deleteOne();
-  await ctx.editMessageText("✅ Stansiya o'chirildi");
+  try {
+    await ctx.editMessageText("✅ Stansiya o'chirildi");
+  } catch (_) {}
 
   return stationInfo(ctx);
 };
@@ -65,7 +84,10 @@ export const deleteStation = async (ctx: MyContext) => {
 export const pricelist = async (ctx: MyContext) => {
   await ctx.answerCallbackQuery();
   ctx.session.selectedStationIds = [];
-  await ctx.deleteMessage()
+
+  try {
+    await ctx.deleteMessage();
+  } catch (_) {}
 
   const userId = ctx.from?.id;
   const user = await UserModel.findOne({ telegramId: userId });
@@ -75,7 +97,9 @@ export const pricelist = async (ctx: MyContext) => {
   const stations = await StationModel.find({ owner: user._id });
 
   if (stations.length < 1) {
-    await ctx.reply("Sizning registratsiyadan o'tgan shaxobchangiz yo'q");
+    try {
+      await ctx.deleteMessage();
+    } catch (_) {}
     return wantTo_AddStantion(ctx);
   }
 
@@ -88,6 +112,8 @@ export const pricelist = async (ctx: MyContext) => {
 
   return ctx.reply("Quyidagilardan birini tanlang", { reply_markup: keyboard });
 };
+
+
 export const toggleStation = async (ctx: MyContext) => {
   await ctx.answerCallbackQuery();
 
@@ -102,7 +128,6 @@ export const toggleStation = async (ctx: MyContext) => {
 
   ctx.session.selectedStationIds = selected;
 
-  // Refresh station list
   return changePrice(ctx);
 };
 
@@ -134,6 +159,7 @@ export const changePrice = async (ctx: MyContext) => {
     reply_markup: keyboard,
   });
 };
+
 export const confirmStationSelection = async (ctx: MyContext) => {
   await ctx.answerCallbackQuery();
 
@@ -154,7 +180,6 @@ export const confirmStationSelection = async (ctx: MyContext) => {
   await ctx.reply(`Iltimos, har bir yoqilg'i turiga narxni kiriting:\n\n${fuelInstructions}`);
 };
 
-
 export const currentPrices = async (ctx: MyContext) => {
   await ctx.answerCallbackQuery();
 
@@ -172,7 +197,10 @@ export const currentPrices = async (ctx: MyContext) => {
 
 export const handleMyPrices = async (ctx: MyContext) => {
   await ctx.answerCallbackQuery();
-  await ctx.deleteMessage();
+
+  try {
+    await ctx.deleteMessage();
+  } catch (_) {}
 
   const userId = ctx.from?.id;
   const user = await UserModel.findOne({ telegramId: userId });
@@ -209,7 +237,10 @@ export const handleMyPrices = async (ctx: MyContext) => {
 
 export const handleCompetitorPrices = async (ctx: MyContext) => {
   await ctx.answerCallbackQuery();
-  await ctx.deleteMessage();
+
+  try {
+    await ctx.deleteMessage();
+  } catch (_) {}
 
   const userId = ctx.from?.id;
   const user = await UserModel.findOne({ telegramId: userId });
@@ -260,10 +291,10 @@ export const handleCompetitorPrices = async (ctx: MyContext) => {
   });
 };
 
+export const gasInfo = async (ctx: MyContext) => {
+  // Placeholder
+};
 
-export const gasInfo = async (ctx:MyContext) => {
-
-}
-export const workTime = async (ctx:MyContext) => {
-  
-}
+export const workTime = async (ctx: MyContext) => {
+  // Placeholder
+};

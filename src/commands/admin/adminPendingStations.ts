@@ -32,10 +32,11 @@ export const adminPendingStations = async (ctx: MyContext) => {
   try {
     await ctx.deleteMessage().catch(console.error);
 
-    const pendingStations = await StationModel.find({ status: "pending" })
-      .populate<{ submittedBy: Submitter }>("submittedBy", "telegramId first_name username")
-      .sort({ createdAt: -1 })
-      .lean();
+    const pendingStations = await StationModel.find({ status: { $in: ["pending", "testing"] } })
+    .populate<{ submittedBy: Submitter }>("submittedBy", "telegramId first_name username")
+    .sort({ createdAt: -1 })
+    .lean();
+  
 
     if (!pendingStations.length) {
       return ctx.reply("✅ Hozirda ko'rib chiqilmagan stansiyalar yo'q.", {
@@ -43,7 +44,7 @@ export const adminPendingStations = async (ctx: MyContext) => {
       });
     }
 
-    let messageText = `⏳ <b>Ko'rib chiqilmagan stansiyalar (${pendingStations.length}):</b>\n\n`;
+    let messageText = `⏳ <b>Ko'rib chiqilmagan yoki test rejimidagi stansiyalar (${pendingStations.length}):</b>\n\n`;
     const keyboard = new InlineKeyboard();
 
     for (const [i, station] of pendingStations.entries()) {
@@ -62,7 +63,9 @@ export const adminPendingStations = async (ctx: MyContext) => {
         minute: "2-digit",
       });
 
-      messageText += `${i + 1}. <b>${escapeHTML(s.name)}</b>\n`;
+      const statusIndicator = s.status === 'testing' ? ' 🧪' : '';
+
+      messageText += `${i + 1}. <b>${escapeHTML(s.name)}</b>${statusIndicator}\n`;
       messageText += `📍 ${s.location.lat}, ${s.location.lng}\n`;
       messageText += `⛽ ${s.fuel_types.join(", ")}\n`;
       messageText += `👤 ${escapeHTML(submitter.first_name)} (@${escapeHTML(submitter.username || "username_yoq")})\n`;
@@ -120,7 +123,10 @@ export const showStationReview = async (ctx: MyContext) => {
       minute: "2-digit",
     });
 
-    const msg =
+    const statusEmoji = station.status === 'pending' ? '⏳' : station.status === 'testing' ? '🧪' : '✅';
+    const statusText = station.status === 'pending' ? 'Kutilmoqda' : station.status === 'testing' ? 'Test rejimida' : 'Tasdiqlangan';
+
+    let msg =
       `<b>🔍 Stansiya ma'lumotlari:</b>\n\n` +
       `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
       `⛽ <b>Yonilg'i turlari:</b> ${station.fuel_types.join(", ")}\n` +
@@ -132,16 +138,29 @@ export const showStationReview = async (ctx: MyContext) => {
       }\n` +
       `📅 <b>Yuborilgan vaqt:</b> ${submittedAt}\n` +
       `🆔 <b>ID:</b> ${station._id}\n` +
-      `📊 <b>Status:</b> ${station.status}\n` +
-      `🏢 <b>Ega sifatida yuborilganmi:</b> ${station.isOwnerSubmission ? "Ha" : "Yo'q"}\n\n` +
-      `<b>Ushbu stansiyani qanday ko'rib chiqasiz?</b>`;
+      `📊 <b>Status:</b> ${statusEmoji} ${statusText}\n` +
+      `🏢 <b>Ega sifatida yuborilganmi:</b> ${station.isOwnerSubmission ? "Ha" : "Yo'q"}\n\n`;
 
-    const keyboard = new InlineKeyboard()
-      .text("✅ Tasdiqlash", `approve_station:${stationId}`)
-      .text("🧪 Test rejimi", `testing_station:${stationId}`)
-      .row()
-      .text("❌ Rad etish", `reject_station:${stationId}`)
-      .row()
+    let keyboard = new InlineKeyboard();
+
+    // Different options based on status
+    if (station.status === 'pending') {
+      msg += `<b>Ushbu stansiyani qanday ko'rib chiqasiz?</b>`;
+      keyboard
+        .text("✅ Tasdiqlash", `approve_station:${stationId}`)
+        .text("🧪 Test rejimi", `testing_station:${stationId}`)
+        .row()
+        .text("❌ Rad etish", `reject_station:${stationId}`)
+        .row();
+    } else if (station.status === 'testing') {
+      msg += `<b>Bu stansiya test rejimida. Yakuniy qaror qabul qiling:</b>`;
+      keyboard
+        .text("✅ To'liq tasdiqlash", `approve_station:${stationId}`)
+        .text("❌ Rad etish", `reject_station:${stationId}`)
+        .row();
+    }
+
+    keyboard
       .text("📍 Xaritada ko'rish", `view_location:${station.location.lat},${station.location.lng}`)
       .row()
       .text("🔙 Orqaga", "admin_pending");
@@ -157,6 +176,12 @@ export const showStationReview = async (ctx: MyContext) => {
     console.error("❌ [ERROR] Error showing station review:", error);
     return ctx.answerCallbackQuery({ text: "Xatolik yuz berdi", show_alert: true });
   }
+};
+
+// New handler for testing stations review
+export const showTestingStationReview = async (ctx: MyContext) => {
+  // Reuse the same logic as showStationReview since it now handles different statuses
+  await showStationReview(ctx);
 };
 
 // Approve station
@@ -207,7 +232,7 @@ export const approveStation = async (ctx: MyContext) => {
       `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
       `⛽ <b>Yonilg'i turlari:</b> ${station.fuel_types.join(", ")}\n` +
       `📍 <b>Koordinatalar:</b> ${station.location.lat}, ${station.location.lng}\n` +
-      `📊 <b>Status:</b> Tasdiqlangan`,
+      `📊 <b>Status:</b> ✅ Tasdiqlangan`,
       {
         reply_markup: new InlineKeyboard()
           .text("🔙 Kutilayotgan stansiyalar", "admin_pending")
@@ -225,7 +250,7 @@ export const approveStation = async (ctx: MyContext) => {
   }
 };
 
-// Set station to testing status
+// Set station to testing status - only for pending stations
 export const setStationToTesting = async (ctx: MyContext) => {
   const stationId = ctx.callbackQuery?.data?.split(":")[1];
   
@@ -252,12 +277,13 @@ export const setStationToTesting = async (ctx: MyContext) => {
     if (station.submittedBy?.telegramId) {
       
       const notificationMessage = 
-        `🧪 <b>Stansiya test rejimida!</b>\n\n` +
-        `⚡ Siz yuborgan stansiya test rejimiga o'tkazildi:\n` +
+        `🧪 <b>Stansiya test rejimiga o'tkazildi!</b>\n\n` +
+        `⚡ Siz yuborgan stansiya dastlabki ko'rikdan o'tdi:\n` +
         `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
         `📍 <b>Joylashuv:</b> ${station.location.lat}, ${station.location.lng}\n` +
         `⛽ <b>Yonilg'i turlari:</b> ${station.fuel_types.join(", ")}\n\n` +
-        `Bu stansiya hozir test rejimida va tez orada to'liq tasdiqlanadi. Sabr qiling! ⏳`;
+        `🔍 Stansiya hozir test rejimida - ma'lumotlar tekshirilmoqda va tez orada yakuniy qaror qabul qilinadi.\n` +
+        `📞 Agar qo'shimcha ma'lumot kerak bo'lsa, biz siz bilan bog'lanamiz. Sabr qiling! ⏳`;
 
       const notificationSent = await notifyUser(
         ctx, 
@@ -274,12 +300,10 @@ export const setStationToTesting = async (ctx: MyContext) => {
       `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
       `⛽ <b>Yonilg'i turlari:</b> ${station.fuel_types.join(", ")}\n` +
       `📍 <b>Koordinatalar:</b> ${station.location.lat}, ${station.location.lng}\n` +
-      `📊 <b>Status:</b> Test rejimida`,
+      `📊 <b>Status:</b> 🧪 Test rejimida\n\n` +
+      `ℹ️ Stansiya test ro'yxatiga qo'shildi. Ma'lumotlar tekshirilgandan so'ng yakuniy qaror qabul qiling.`,
       {
         reply_markup: new InlineKeyboard()
-          .text("✅ To'liq tasdiqlash", `approve_station:${stationId}`)
-          .text("❌ Rad etish", `reject_station:${stationId}`)
-          .row()
           .text("🔙 Kutilayotgan stansiyalar", "admin_pending")
           .row()
           .text("🔙 Admin panel", "admin_panel:back"),
@@ -320,8 +344,8 @@ export const rejectStation = async (ctx: MyContext) => {
     const submitter = station.submittedBy;
     await StationModel.findByIdAndDelete(stationId);
     
-    // Notify the user who submitted the station
-    if (station.submittedBy?.telegramId) {
+    // Notify the user who submitted the station (only for pending stations, not testing)
+    if (station.submittedBy?.telegramId && station.status === 'pending') {
 
       const notificationMessage = 
         `😔 <b>Afsuski...</b>\n\n` +
@@ -351,7 +375,7 @@ export const rejectStation = async (ctx: MyContext) => {
       `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
       `⛽ <b>Yonilg'i turlari:</b> ${station.fuel_types.join(", ")}\n` +
       `📍 <b>Koordinatalar:</b> ${station.location.lat}, ${station.location.lng}\n` +
-      `📊 <b>Status:</b> Rad etilgan`,
+      `📊 <b>Status:</b> ❌ Rad etilgan`,
       {
         reply_markup: new InlineKeyboard()
           .text("🔙 Kutilayotgan stansiyalar", "admin_pending")

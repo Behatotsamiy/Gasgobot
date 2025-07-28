@@ -43,9 +43,7 @@ bot.command("start", start);
 bot.command("admin", admin);
 bot.command("ishla", Station_Admin);
 
-// 📍 Handle location messages
 bot.on("message:location", async (ctx) => {
-  // First check if we're in station creation mode
   if (ctx.session.step === "location") {
     const handled = await handleStationLocation(ctx);
     if (handled) return; 
@@ -54,13 +52,11 @@ bot.on("message:location", async (ctx) => {
   return locationKeyboard(ctx);
 });
 
-// 🔘 Handle callback queries
 bot.on("callback_query:data", HandleCallbackQuery);
 
 bot.on("message:text", async (ctx, next) => {
   const userId = ctx.from?.id;
 
-  // Broadcast case...
   if (ctx.session.awaitingBroadcast) {
     const text = ctx.message.text;
     broadcastMap.set(userId, text);
@@ -76,7 +72,6 @@ bot.on("message:text", async (ctx, next) => {
     return;
   }
 
-  // Handle fuel price input
   if (ctx.session.step === "setting_price") {
     const text = ctx.message.text;
     const parsed = parsePrices(text);
