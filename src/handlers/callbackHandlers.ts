@@ -18,6 +18,13 @@ import {
   stationChange,
   userStationInfo,
   deleteStation,
+  pricelist,
+  changePrice,
+  currentPrices,
+  toggleStation,
+  confirmStationSelection,
+  handleMyPrices,
+  handleCompetitorPrices,
 } from "../commands/stationAdmin/stationAdminsCommands.js";
 
 import { profile } from "../commands/profile.js";
@@ -32,7 +39,8 @@ import {
   showStationReview, 
   approveStation, 
   rejectStation, 
-  viewStationLocation 
+  viewStationLocation, 
+  setStationToTesting
 } from "../commands/admin/adminPendingStations.ts";
 import { Station_Admin } from "../commands/stationAdmin/stationAdmin.ts";
 import { editStation } from "../keyboards/manageStations.ts";
@@ -40,6 +48,8 @@ import { editStation } from "../keyboards/manageStations.ts";
 // Import your edit fuel handlers (you'll need to create these)
 import { handleEditFuelSelection, handleFuelDone } from "../keyboards/manageStations.ts";
 import { Busyness, BusynessMain, ChangeBusyness } from '../commands/stationAdmin/busyness.ts';
+import { confirmPriceSave, cancelPriceSave } from "../commands/stationAdmin/savePrices.js";
+
 
 const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   profile,
@@ -53,10 +63,18 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   // Station management
   busyness: BusynessMain,
   fuel_changed: editStation,
+  confirm_price_save: confirmPriceSave,
+  cancel_price_save: cancelPriceSave,
+  pricelist: pricelist,
   addStationKB: addStation,
   station_info: stationInfo,
   station_change: stationChange,
   "station_share_location": handleStationCallbacks,
+  change_prices: changePrice,
+  view_prices: currentPrices,
+  confirm_station_selection: confirmStationSelection,
+  my_prices: handleMyPrices,
+  competitor_prices: handleCompetitorPrices,
 
   // Edit fuel handlers
   edit_fuel_complete: handleFuelDone,
@@ -102,9 +120,10 @@ export async function HandleCallbackQuery(ctx: MyContext) {
     if (data.startsWith("busyness_set:")) {
       return await ChangeBusyness(ctx);
     }
-    
+    if (data.startsWith("toggle_station:")) {
+      return await toggleStation(ctx);
+    }
 
-    // ✅ Handle exact match for other callbacks
     const handler = callbackHandlers[data];
     if (handler) {
       return await handler(ctx);
@@ -119,7 +138,9 @@ export async function HandleCallbackQuery(ctx: MyContext) {
     if (data.startsWith("delete_station:")) {
       return await deleteStation(ctx);
     }
-
+    if (data.startsWith("testing_station:")) {
+      return await setStationToTesting(ctx);
+    }
     if (data.startsWith("station_name_change:")) {
       return await stationChange(ctx);
     }

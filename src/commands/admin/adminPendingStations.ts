@@ -17,7 +17,7 @@ function escapeHTML(text: string = ""): string {
 }
 
 // Helper function to notify user about station status
-async function notifyUser(ctx: MyContext, userId: string, message: string, stationName: string, action: 'approved' | 'rejected') {
+async function notifyUser(ctx: MyContext, userId: string, message: string, stationName: string, action: 'approved' | 'rejected' | 'testing') {
   try {
     await ctx.api.sendMessage(userId, message, { parse_mode: "HTML" });
     return true;
@@ -134,10 +134,12 @@ export const showStationReview = async (ctx: MyContext) => {
       `🆔 <b>ID:</b> ${station._id}\n` +
       `📊 <b>Status:</b> ${station.status}\n` +
       `🏢 <b>Ega sifatida yuborilganmi:</b> ${station.isOwnerSubmission ? "Ha" : "Yo'q"}\n\n` +
-      `<b>Ushbu stansiyani tasdiqlaysizmi?</b>`;
+      `<b>Ushbu stansiyani qanday ko'rib chiqasiz?</b>`;
 
     const keyboard = new InlineKeyboard()
       .text("✅ Tasdiqlash", `approve_station:${stationId}`)
+      .text("🧪 Test rejimi", `testing_station:${stationId}`)
+      .row()
       .text("❌ Rad etish", `reject_station:${stationId}`)
       .row()
       .text("📍 Xaritada ko'rish", `view_location:${station.location.lat},${station.location.lng}`)
@@ -169,7 +171,10 @@ export const approveStation = async (ctx: MyContext) => {
     
     const station = await StationModel.findByIdAndUpdate(
       stationId,
-      { status: "approved" },
+      { 
+        status: "approved",
+        reviewedAt: new Date()
+      },
       { new: true }
     ).populate<{ submittedBy: Submitter }>("submittedBy", "telegramId first_name username");
 
@@ -220,6 +225,76 @@ export const approveStation = async (ctx: MyContext) => {
   }
 };
 
+// Set station to testing status
+export const setStationToTesting = async (ctx: MyContext) => {
+  const stationId = ctx.callbackQuery?.data?.split(":")[1];
+  
+  if (!stationId) {
+    return ctx.answerCallbackQuery({ text: "Stansiya ID topilmadi", show_alert: true });
+  }
+
+  try {
+    
+    const station = await StationModel.findByIdAndUpdate(
+      stationId,
+      { 
+        status: "testing",
+        reviewedAt: new Date()
+      },
+      { new: true }
+    ).populate<{ submittedBy: Submitter }>("submittedBy", "telegramId first_name username");
+
+    if (!station) {
+      return ctx.answerCallbackQuery({ text: "Stansiya topilmadi", show_alert: true });
+    }
+
+    // Notify the user who submitted the station
+    if (station.submittedBy?.telegramId) {
+      
+      const notificationMessage = 
+        `🧪 <b>Stansiya test rejimida!</b>\n\n` +
+        `⚡ Siz yuborgan stansiya test rejimiga o'tkazildi:\n` +
+        `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
+        `📍 <b>Joylashuv:</b> ${station.location.lat}, ${station.location.lng}\n` +
+        `⛽ <b>Yonilg'i turlari:</b> ${station.fuel_types.join(", ")}\n\n` +
+        `Bu stansiya hozir test rejimida va tez orada to'liq tasdiqlanadi. Sabr qiling! ⏳`;
+
+      const notificationSent = await notifyUser(
+        ctx, 
+        station.submittedBy.telegramId, 
+        notificationMessage, 
+        station.name, 
+        'testing'
+      );
+    } 
+
+    // Update the admin message
+    await ctx.editMessageText(
+      `🧪 <b>Stansiya test rejimiga o'tkazildi!</b>\n\n` +
+      `🏷️ <b>Nomi:</b> ${escapeHTML(station.name)}\n` +
+      `⛽ <b>Yonilg'i turlari:</b> ${station.fuel_types.join(", ")}\n` +
+      `📍 <b>Koordinatalar:</b> ${station.location.lat}, ${station.location.lng}\n` +
+      `📊 <b>Status:</b> Test rejimida`,
+      {
+        reply_markup: new InlineKeyboard()
+          .text("✅ To'liq tasdiqlash", `approve_station:${stationId}`)
+          .text("❌ Rad etish", `reject_station:${stationId}`)
+          .row()
+          .text("🔙 Kutilayotgan stansiyalar", "admin_pending")
+          .row()
+          .text("🔙 Admin panel", "admin_panel:back"),
+        parse_mode: "HTML",
+      }
+    );
+
+    await ctx.answerCallbackQuery({ text: "Stansiya test rejimiga o'tkazildi!" });
+    
+  } catch (error) {
+    console.error("❌ [ERROR] Error setting station to testing:", error);
+    return ctx.answerCallbackQuery({ text: "Xatolik yuz berdi", show_alert: true });
+  }
+};
+
 // Reject station
 export const rejectStation = async (ctx: MyContext) => {
   const stationId = ctx.callbackQuery?.data?.split(":")[1];
@@ -245,12 +320,6 @@ export const rejectStation = async (ctx: MyContext) => {
     const submitter = station.submittedBy;
     await StationModel.findByIdAndDelete(stationId);
     
-
-    if (!station) {
-      console.log(`❌ [REJECT] Station not found for ID: ${stationId}`);
-      return ctx.answerCallbackQuery({ text: "Stansiya topilmadi", show_alert: true });
-    }
-
     // Notify the user who submitted the station
     if (station.submittedBy?.telegramId) {
 

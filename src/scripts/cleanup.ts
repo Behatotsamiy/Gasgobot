@@ -23,22 +23,49 @@ async function cleanup() {
       status: { $in: ["pending", "rejected"] },
     });
 
-    // 3. Update stations without "approved" status to set it
+    // 3. Update stations without proper "approved" status to set it
+    // This catches: missing field, null, undefined, empty string, or any invalid status
     const updatedStatus = await StationModel.updateMany(
-      { status: { $exists: false } },
+      { 
+        $or: [
+          { status: { $exists: false } },
+          { status: null },
+          { status: "" },
+          { status: { $nin: ["approved", "testing", "pending", "rejected"] } }
+        ]
+      },
       { $set: { status: "approved" } }
     );
 
     // 4. Add busyness.level = "green" where it's missing
     const updatedBusyness = await StationModel.updateMany(
-      { $or: [{ busyness: { $exists: false } }, { "busyness.level": { $exists: false } }] },
-      { $set: { "busyness.level": "green" } }
+      { 
+        $or: [
+          { busyness: { $exists: false } }, 
+          { "busyness.level": { $exists: false } },
+          { "busyness.level": null },
+          { "busyness.level": "" }
+        ] 
+      },
+      { 
+        $set: { 
+          "busyness.level": "green",
+          "busyness.updatedAt": new Date()
+        } 
+      }
     );
+
+    // 5. Optional: Log what statuses exist after cleanup
+    const statusCounts = await StationModel.aggregate([
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
 
     console.log(`🧹 Deleted ${deletedTests.deletedCount} test stations`);
     console.log(`🗑️ Deleted ${deletedPendingRejected.deletedCount} pending/rejected stations`);
     console.log(`✅ Updated ${updatedStatus.modifiedCount} stations to approved`);
     console.log(`💚 Set busyness to green on ${updatedBusyness.modifiedCount} stations`);
+    console.log(`📊 Current status distribution:`, statusCounts);
 
     await mongoose.disconnect();
     process.exit(0);

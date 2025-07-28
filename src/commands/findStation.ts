@@ -48,7 +48,10 @@ export const findStation = async (ctx: MyContext) => {
     if (!user.phone_number) return ctx.reply("📞 Telefon raqamingiz saqlanmagan.", { reply_markup: locationKeyboard });
     if (!user.location?.lat || !user.location?.lng) return ctx.reply("📍 Joylashuvingiz saqlanmagan.", { reply_markup: locationKeyboard });
 
-    const stations = await StationModel.find({ fuel_types: fuel, status: { $nin: ["pending", "rejected"] } });
+    const stations = await StationModel.find({ 
+      fuel_types: fuel, 
+      status: "approved" 
+    });
 
     if (!stations.length) {
       return ctx.reply("⛽ Bu turdagi yoqilg'i uchun stansiyalar topilmadi.", {
@@ -117,13 +120,17 @@ export const findStation = async (ctx: MyContext) => {
       red: "🔴",
     }[station.busyness?.level] || "❔";
 
+    const price = station.pricing?.[fuel];
+    const priceText = price ? `💸 Narx: ${price.toLocaleString()} so'm` : "💸 Narx: mavjud emas";
+    
     await ctx.reply(
-      `⛽ *${station.name}*\n📍 ${(station.distance / 1000).toFixed(1)} km\n📊 Bandlik: ${busynessEmoji}\n🧭 ${index + 1} dan ${sorted.length}`,
+      `⛽ *${station.name}*\n📍 ${(station.distance / 1000).toFixed(1)} km\n📊 Bandlik: ${busynessEmoji}\n${priceText}\n🧭 ${index + 1} dan ${sorted.length}`,
       {
         parse_mode: "Markdown",
         reply_markup: unifiedKeyboard,
       }
     );
+    
   } catch (err) {
     console.error("❌ findStation xatosi:", err);
     await ctx.reply("⚠️ Stansiya qidirishda xatolik yuz berdi.");

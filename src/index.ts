@@ -14,6 +14,8 @@ import { HandleCallbackQuery } from "./handlers/callbackHandlers.ts";
 import { broadcastMap } from "./utils/broadcastMap.ts";
 import { Station_Admin } from "./commands/stationAdmin/stationAdmin.ts";
 import { handleAddStationName, handleStationCallbacks, handleStationLocation } from "./keyboards/addStation.ts"
+import { parsePrices } from "./utils/parsePrice.ts";
+import { StationModel } from "./Models/Station.ts";
 
 dotenv.config();
 const Key = process.env.BOT_TOKEN;
@@ -55,12 +57,13 @@ bot.on("message:location", async (ctx) => {
 // 🔘 Handle callback queries
 bot.on("callback_query:data", HandleCallbackQuery);
 
-// 📢 Broadcast flow
 bot.on("message:text", async (ctx, next) => {
+  const userId = ctx.from?.id;
 
+  // Broadcast case...
   if (ctx.session.awaitingBroadcast) {
     const text = ctx.message.text;
-    broadcastMap.set(ctx.from.id, text);
+    broadcastMap.set(userId, text);
     ctx.session.awaitingBroadcast = false;
 
     const confirmKeyboard = new InlineKeyboard()
@@ -73,8 +76,33 @@ bot.on("message:text", async (ctx, next) => {
     return;
   }
 
+  // Handle fuel price input
+  if (ctx.session.step === "setting_price") {
+    const text = ctx.message.text;
+    const parsed = parsePrices(text);
+
+    if (Object.keys(parsed).length === 0) {
+      return ctx.reply("❌ Format noto'g'ri. Har bir qatorda: `Ai-92: 12300` bo'lishi kerak.");
+    }
+
+    ctx.session.broadcastPreview = JSON.stringify(parsed); // temporary save
+    ctx.session.step = "confirm_price_save";
+
+    const keyboard = new InlineKeyboard()
+      .text("✅ Saqlash", "confirm_price_save")
+      .text("❌ Bekor qilish", "cancel_price_save");
+
+    return ctx.reply(
+      `Siz kiritgan narxlar:\n\n${Object.entries(parsed)
+        .map(([fuel, price]) => `⛽ ${fuel}: ${Number(price).toLocaleString()} so'm`)
+        .join("\n")}\n\nTasdiqlaysizmi?`,
+      { reply_markup: keyboard }
+    );
+  }
+
   await next();
 });
+
 
 // 🏷 Add station name
 bot.on("message:text", handleAddStationName);
