@@ -6,18 +6,24 @@ import { InlineKeyboard } from "grammy";
 import { wantTo_AddStantion } from "../../keyboards/wantToAddStantion.ts";
 import { StaitonShort, Stationlong, editStation } from "../../keyboards/manageStations.ts";
 
+export async function stationInfo(ctx: MyContext, specificStation?: StationDocument) {
+  if ("callback_query" in ctx.update) {
+    await ctx.answerCallbackQuery();
+  }
 
-export async function stationInfo(ctx: MyContext) {
-  await ctx.answerCallbackQuery();
   ctx.session.prevMenu = "station_menu";
+
+  if (specificStation) {
+    await StaitonShort(specificStation.name, specificStation._id, ctx);
+    ctx.session.step = "add_another_station";
+    return wantTo_AddStantion(ctx);
+  }
 
   const userId = ctx.from?.id;
   const user = await UserModel.findOne({ telegramId: userId });
-
   if (!user) return ctx.reply("Foydalanuvchi topilmadi");
 
   const stations = await StationModel.find({ owner: user._id });
-
   if (stations.length < 1) {
     try {
       await ctx.deleteMessage();
@@ -31,9 +37,10 @@ export async function stationInfo(ctx: MyContext) {
     await StaitonShort(station.name, station._id, ctx);
   }
 
-  ctx.session.step = "add_another_station"; // optional: can differentiate state
+  ctx.session.step = "add_another_station";
   return wantTo_AddStantion(ctx);
 }
+
 
 
 export const userStationInfo = async (ctx: MyContext) => {
