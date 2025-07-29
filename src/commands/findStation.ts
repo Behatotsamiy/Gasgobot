@@ -101,8 +101,11 @@ export const findStation = async (ctx: MyContext) => {
       } catch {}
     }
 
-    const locMsg = await ctx.replyWithLocation(station.location.lat, station.location.lng);
-    ctx.session.lastLocationMsgId = locMsg.message_id;
+    const locMsg = await ctx.replyWithLocation(
+      station.location.lat,
+      station.location.lng
+    );
+    ctx.session.lastLocationMsgId = locMsg.message_id
 
     const unifiedKeyboard = new InlineKeyboard();
 

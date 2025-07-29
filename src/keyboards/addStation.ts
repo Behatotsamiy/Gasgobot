@@ -123,7 +123,7 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
     
 
     const fuelType = data.split(":")[1];
-    const currentFuels = ctx.session.station.fuel_types || [];
+    const currentFuels = ctx.session?.station?.fuel_types || [];
 
     console.log("🛠️ Selected fuelType:", fuelType);
     console.log("📦 Current fuels before change:", currentFuels);
