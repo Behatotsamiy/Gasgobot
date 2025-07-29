@@ -212,5 +212,17 @@ async function startBot() {
     console.error("Error in startBot:", error);
   }
 }
+setInterval(async () => {
+  const now = new Date();
+  await StationModel.updateMany(
+    { "busyness.expiresAt": { $lte: now } },
+    {
+      $set: {
+        "busyness.level": undefined,
+        "busyness.expiresAt": undefined,
+      },
+    }
+  );
+}, 5 * 60 * 1000); // every 5 minutes
 
 startBot();

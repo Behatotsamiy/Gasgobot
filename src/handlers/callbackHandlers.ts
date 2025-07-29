@@ -87,6 +87,11 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   admin_pending: requireAdmin(adminPendingStations),
   broadcast_confirm: confirmBroadcast,
   broadcast_cancel: cancelBroadcast,
+
+  // noop
+  noop : (ctx:MyContext) => ctx.answerCallbackQuery({ text: "Boshqa shaxobchalar yo‘q", show_alert: true }).catch(() => {}),
+  noopTwo : (ctx:MyContext) => ctx.answerCallbackQuery({ text: "Oldingi sahifa yo‘q", show_alert: true }).catch(() => {}),
+
 };
 
 export async function HandleCallbackQuery(ctx: MyContext) {

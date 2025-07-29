@@ -83,14 +83,23 @@ export const findStation = async (ctx: MyContext) => {
     }
 
     const sorted = filtered.sort((a, b) => {
+      const map: Record<string, number> = { green: 1, orange: 2, red: 3 };
+    
+      const aHasLevel = a.busyness?.level in map;
+      const bHasLevel = b.busyness?.level in map;
+    
       if (sortType === "busyness") {
-        const map: Record<string, number> = { green: 1, orange: 2, red: 3 };
-        const getLevel = (s: any) => map[s.busyness?.level] || 4;
-        return getLevel(a) - getLevel(b);
-      } else {
-        return a.distance - b.distance;
+        if (aHasLevel && bHasLevel) {
+          return map[a.busyness.level] - map[b.busyness.level];
+        }
+        if (aHasLevel) return -1;
+        if (bHasLevel) return 1;
+        return a.distance - b.distance; // fallback: nearest undefined
       }
+    
+      return a.distance - b.distance;
     });
+    
 
     const station = sorted[index];
     if (!station) return ctx.reply("❗ Stansiya topilmadi.");
@@ -109,19 +118,28 @@ export const findStation = async (ctx: MyContext) => {
 
     const unifiedKeyboard = new InlineKeyboard();
 
+    if (index > 0)
+      unifiedKeyboard.text("⬅️", `fuel:${fuel}:${index - 1}:${sortType}:${showFar ? "showMore" : ""}`);
+    else
+      unifiedKeyboard.text("|", "noopTwo");
+    
     unifiedKeyboard
-      .text(index > 0 ? "⬅️" : " ", `fuel:${fuel}:${index - 1}:${sortType}:${showFar ? "showMore" : ""}`)
-      .text(sortType === "distance" ? "📍 Masofa" : "📍 Masofa", `fuel:${fuel}:0:distance`)
-      .text(sortType === "busyness" ? "📊 Bandlik" : "📊 Bandlik", `fuel:${fuel}:0:busyness`)
-      .text(index < sorted.length - 1 ? "➡️" : " ", `fuel:${fuel}:${index + 1}:${sortType}:${showFar ? "showMore" : ""}`)
-      .row()
-      .text("🔙 Ortga", "menu:fuel");
+      .text(sortType === "distance" ? "📍 Masofa ✅" : "📍 Masofa", `fuel:${fuel}:0:distance`)
+      .text(sortType === "busyness" ? "📊 Bandlik ✅" : "📊 Bandlik", `fuel:${fuel}:0:busyness`);
+    
+    if (index < sorted.length - 1)
+      unifiedKeyboard.text("➡️", `fuel:${fuel}:${index + 1}:${sortType}:${showFar ? "showMore" : ""}`);
+    else
+      unifiedKeyboard.text("|", "noop");
+    
+    unifiedKeyboard.row().text("🔙 Ortga", "backToMenu");
+    
 
     const busynessEmoji = {
       green: "🟢",
       orange: "🟠",
       red: "🔴",
-    }[station.busyness?.level] || "❔";
+    }[station.busyness?.level] || "mavjud emas";
 
     const price = station.pricing?.[fuel];
     const priceText = price ? `💸 Narx: ${price.toLocaleString()} so'm` : "💸 Narx: mavjud emas";

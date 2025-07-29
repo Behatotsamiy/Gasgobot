@@ -37,23 +37,19 @@ async function cleanup() {
       { $set: { status: "approved" } }
     );
 
-    // 4. Add busyness.level = "green" where it's missing
     const updatedBusyness = await StationModel.updateMany(
-      { 
-        $or: [
-          { busyness: { $exists: false } }, 
-          { "busyness.level": { $exists: false } },
-          { "busyness.level": null },
-          { "busyness.level": "" }
-        ] 
-      },
-      { 
-        $set: { 
-          "busyness.level": "green",
+      {},
+      {
+        $unset: {
+          "busyness.level": "",
+          "busyness.expiresAt": ""
+        },
+        $set: {
           "busyness.updatedAt": new Date()
-        } 
+        }
       }
     );
+    
 
     // 5. Optional: Log what statuses exist after cleanup
     const statusCounts = await StationModel.aggregate([
