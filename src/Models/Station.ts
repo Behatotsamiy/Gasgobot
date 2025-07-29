@@ -7,13 +7,21 @@ export interface Station extends Document {
     lat: number;
     lng: number;
   };
+  pricing: {
+    [fuelType: string]: number; // e.g., { "AI-92": 10500 }
+  };
   owner?: ObjectId;
   submittedBy?: ObjectId;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "testing";
   isOwnerSubmission: boolean;
   createdAt: Date;
   reviewedAt?: Date;
   reviewedBy?: ObjectId;
+  busyness: {
+    level: "green" | "orange" | "red";
+    updatedAt: Date;
+    expiresAt?: Date;
+  };
 }
 
 const StationSchema = new mongoose.Schema<Station>(
@@ -36,6 +44,11 @@ const StationSchema = new mongoose.Schema<Station>(
         required: true,
       },
     },
+    pricing: {
+      type: Map,
+      of: Number,
+      default: {}, // Optional
+    },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -46,7 +59,7 @@ const StationSchema = new mongoose.Schema<Station>(
     },
     status: {
       type: mongoose.SchemaTypes.String,
-      enum: ["pending", "approved", "rejected"],
+      enum: ["pending", "approved", "rejected", "testing"],
       default: "pending",
     },
     isOwnerSubmission: {
@@ -59,6 +72,21 @@ const StationSchema = new mongoose.Schema<Station>(
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+    busyness: {
+      level: {
+        type: String,
+        enum: ["green", "orange", "red"],
+        required: true,
+        default: "green",
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now,
+      },
+      expiresAt: {
+        type: Date,
+      },
     },
   },
   {

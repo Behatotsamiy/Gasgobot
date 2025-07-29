@@ -1,0 +1,22 @@
+/ishla (Main Admin Menu)
+├── 📍 Stations
+│   ├── ➕ Add Station
+│   ├── 📋 My Stations (List)
+│   │   └── [Name] ➜ Info | 📝 Edit | ❌ Delete | 📊 Business Status
+│   └── 🔍 Find Station (by name/id)
+│
+├── 💵 Prices
+│   ├── Set Prices
+│   └── View Current Prices
+│
+├── ⛽ Fuel Types
+│   ├── Add Fuel Type
+│   └── Edit Fuel Availability
+│
+├── 🕐 Work Time
+│   ├── Set Work Time
+│   └── View Current Time
+│
+└── 📊 Business Status (Shortcut)
+    ├── Set Business Status (for a station)
+    └── View Current Status

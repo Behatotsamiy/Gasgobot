@@ -104,24 +104,44 @@ export const handleStationLocation = async (ctx: MyContext) => {
 
 export const handleStationCallbacks = async (ctx: MyContext) => {
   const data = ctx.callbackQuery?.data;
-  if (!data) return ctx.answerCallbackQuery({ text: "Ma'lumot topilmadi", show_alert: true });
+  if (!data) {
+    console.log("⚠️ No callback data received");
+    return ctx.answerCallbackQuery({ text: "Ma'lumot topilmadi", show_alert: true });
+  }
+
+  console.log("📥 Callback data received:", data);
 
   if (data.startsWith("fuel_select:")) {
-    if (ctx.session.step !== "fuel") return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
+    console.log("⛽ fuel_select triggered");
+    console.log("🧠 Session.step:", ctx.session.step);
+    console.log("🧠 Session.station:", ctx.session.station);
+
+    if (!["fuel", "station_gas_change"].includes(ctx.session.step)) {
+      console.log("🚫 Incorrect session.step — expected 'fuel' or 'station_gas_change'");
+      return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
+    }
     
+
     const fuelType = data.split(":")[1];
     const currentFuels = ctx.session?.station?.fuel_types || [];
 
+    console.log("🛠️ Selected fuelType:", fuelType);
+    console.log("📦 Current fuels before change:", currentFuels);
+
     if (currentFuels.includes(fuelType)) {
       ctx.session.station.fuel_types = currentFuels.filter(f => f !== fuelType);
+      console.log("➖ Fuel removed:", fuelType);
     } else {
       ctx.session.station.fuel_types = [...currentFuels, fuelType];
+      console.log("➕ Fuel added:", fuelType);
     }
+
+    console.log("📦 Current fuels after change:", ctx.session.station.fuel_types);
 
     await ctx.editMessageReplyMarkup({
       reply_markup: getFuelKeyboard(ctx.session.station.fuel_types)
     });
-    
+
     return ctx.answerCallbackQuery({
       text: currentFuels.includes(fuelType) 
         ? `❌ ${fuelType} olib tashlandi` 
@@ -130,34 +150,42 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
   }
 
   if (data === "fuel_done") {
-    if (ctx.session.step !== "fuel") return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
-    
+    if (!["fuel", "station_gas_change"].includes(ctx.session.step)) {
+      return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
+    }
+  
+    if (!ctx.session.station) {
+      return ctx.answerCallbackQuery({ text: "❌ Stansiya maʼlumotlari yoʻq", show_alert: true });
+    }
+  
     if (!ctx.session.station.fuel_types || ctx.session.station.fuel_types.length === 0) {
-      return ctx.answerCallbackQuery({ 
-        text: "🚫 Hech bo'lmagan bitta yonilg'i turi tanlang!", 
-        show_alert: true 
+      return ctx.answerCallbackQuery({
+        text: "🚫 Hech bo'lmagan bitta yonilg'i turi tanlang!",
+        show_alert: true,
       });
     }
-    
+  
     ctx.session.step = "location";
     await ctx.editMessageText("✅ Yonilg'i turlari saqlandi.");
     await ctx.reply(
       "📍 Stansiya joylashuvini yuboring:\n\n" +
-      "📝 <b>Koordinatalarni yozing</b>: <code>41.3030, 69.2829</code>\n" +
-      "📍 <b>Yoki lokatsiyani jo'nating</b>", 
-      { 
-        parse_mode: "HTML"
+        "📝 <b>Koordinatalarni yozing</b>: <code>41.3030, 69.2829</code>\n" +
+        "📍 <b>Yoki lokatsiyani jo'nating</b>",
+      {
+        parse_mode: "HTML",
       }
     );
     return ctx.answerCallbackQuery();
   }
-
+  
   if (data === "station_share_location") {
-    ctx.session.step = "location"; // ✅ Forcefully set to location step
-    await ctx.editMessageText("📍 Stansiya joylashuvini yuboring:\n\n" +
-      "📝 <b>Koordinatalarni yozing</b>: <code>41.3030, 69.2829</code>\n" +
-      "📍 <b>Yoki lokatsiyani yuboring</b>", 
-      { parse_mode: "HTML" });
+    ctx.session.step = "location";
+    await ctx.editMessageText(
+      "📍 Stansiya joylashuvini yuboring:\n\n" +
+        "📝 <b>Koordinatalarni yozing</b>: <code>41.3030, 69.2829</code>\n" +
+        "📍 <b>Yoki lokatsiyani yuboring</b>",
+      { parse_mode: "HTML" }
+    );
     return ctx.answerCallbackQuery();
   }
   

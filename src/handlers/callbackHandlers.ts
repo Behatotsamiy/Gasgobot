@@ -1,4 +1,4 @@
-import { MyContext } from "../types.js";
+import { MyContext } from './../types.js';
 import { cancelBroadcast } from "../commands/broadcast/cancel.js";
 import { confirmBroadcast } from "../commands/broadcast/confirm.js";
 import {
@@ -18,6 +18,13 @@ import {
   stationChange,
   userStationInfo,
   deleteStation,
+  pricelist,
+  changePrice,
+  currentPrices,
+  toggleStation,
+  confirmStationSelection,
+  handleMyPrices,
+  handleCompetitorPrices,
 } from "../commands/stationAdmin/stationAdminsCommands.js";
 
 import { profile } from "../commands/profile.js";
@@ -27,15 +34,22 @@ import { adminUsersHandler } from "../commands/admin/users.js";
 import { BacktoAdmin } from "../commands/admin/back.js";
 import { AdminBroadcast } from "../commands/admin/broadcast.js";
 import { requireAdmin } from "../utils/requireAdmin.js";
-import {
-  adminPendingStations,
-  showStationReview,
-  approveStation,
-  rejectStation,
-  viewStationLocation,
+import { 
+  adminPendingStations, 
+  showStationReview, 
+  approveStation, 
+  rejectStation, 
+  viewStationLocation, 
+  setStationToTesting
 } from "../commands/admin/adminPendingStations.ts";
 import { Station_Admin } from "../commands/stationAdmin/stationAdmin.ts";
 import { editStation } from "../keyboards/manageStations.ts";
+
+// Import your edit fuel handlers (you'll need to create these)
+import { handleEditFuelSelection, handleFuelDone } from "../keyboards/manageStations.ts";
+import { Busyness, BusynessMain, ChangeBusyness } from '../commands/stationAdmin/busyness.ts';
+import { confirmPriceSave, cancelPriceSave } from "../commands/stationAdmin/savePrices.js";
+
 
 const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   profile,
@@ -47,13 +61,24 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   "location:yes": locationChangeAccept,
 
   // Station management
-  station_name_change: editStation,
-  station_gas_change: editStation,
-  station_location_change: editStation,
+  busyness: BusynessMain,
+  fuel_changed: editStation,
+  confirm_price_save: confirmPriceSave,
+  cancel_price_save: cancelPriceSave,
+  pricelist: pricelist,
   addStationKB: addStation,
   station_info: stationInfo,
   station_change: stationChange,
-  station_share_location: handleStationCallbacks,
+
+  "station_share_location": handleStationCallbacks,
+  change_prices: changePrice,
+  view_prices: currentPrices,
+  confirm_station_selection: confirmStationSelection,
+  my_prices: handleMyPrices,
+  competitor_prices: handleCompetitorPrices,
+
+  // Edit fuel handlers
+  edit_fuel_complete: handleFuelDone,
 
   // 🔒 Admin-only
   admin_panel: requireAdmin(admin),
@@ -90,20 +115,31 @@ export async function HandleCallbackQuery(ctx: MyContext) {
       return await editStation(ctx, id);
     }
 
-
-
-
-    // ✅ Handle station management callbacks FIRST (centralized)
-    if (
-      data.startsWith("fuel_select:") ||
-      data === "fuel_done" ||
-      data === "ownership_confirm" ||
-      data === "ownership_deny"
-    ) {
-      return await handleStationCallbacks(ctx);
+    // ✅ Handle station EDITING fuel selection (completely separate from creation)
+    if (data.startsWith("edit_fuel_select:")) {
+      const fuelType = data.split(":")[1];
+      return await handleEditFuelSelection(ctx, fuelType);
     }
 
-    // ✅ Handle exact match for other callbacks
+    // ✅ Handle station management callbacks for CREATION (centralized)
+    if (data.startsWith("fuel_select:") || 
+        data === "fuel_done" || 
+        data === "ownership_confirm" || 
+        data === "ownership_deny") {
+      
+      return await handleStationCallbacks(ctx);
+    }
+    if (data.startsWith("station_busyness:")) {
+      return await Busyness(ctx);
+    }
+    
+    if (data.startsWith("busyness_set:")) {
+      return await ChangeBusyness(ctx);
+    }
+    if (data.startsWith("toggle_station:")) {
+      return await toggleStation(ctx);
+    }
+
     const handler = callbackHandlers[data];
     if (handler) {
       return await handler(ctx);
@@ -118,38 +154,43 @@ export async function HandleCallbackQuery(ctx: MyContext) {
     if (data.startsWith("delete_station:")) {
       return await deleteStation(ctx);
     }
+    if (data.startsWith("testing_station:")) {
+      return await setStationToTesting(ctx);
+    }
+    if (data.startsWith("station_name_change:")) {
+      return await stationChange(ctx);
+    }
+    if (data.startsWith("station_gas_change:")) {
+      return await stationChange(ctx);
+    }
+    if (data.startsWith("station_location_change:")) {
+      return await stationChange(ctx);
+    }
 
-    // ✅ Handle admin users pagination
     if (/^admin_users(\?page=\d+)?$/.test(data)) {
       return await requireAdmin(adminUsersHandler)(ctx);
     }
 
-    // ✅ Handle pending station review (admin-only)
     if (data.startsWith("pending_review:")) {
       return await requireAdmin(showStationReview)(ctx);
     }
 
-    // ✅ Handle station approval (admin-only)
     if (data.startsWith("approve_station:")) {
       return await requireAdmin(approveStation)(ctx);
     }
 
-    // ✅ Handle station rejection (admin-only)
     if (data.startsWith("reject_station:")) {
       return await requireAdmin(rejectStation)(ctx);
     }
 
-    // ✅ Handle view location on map
     if (data.startsWith("view_location:")) {
       return await viewStationLocation(ctx);
     }
 
-    // ✅ Handle fuel search (when NOT in station creation)
     if (/^fuel:.+/.test(data)) {
       return await findStation(ctx);
     }
 
-    // ✅ Log unknown callbacks for debugging
     console.warn(`Unknown callback data: ${data}`);
     return await ctx.answerCallbackQuery({
       text: "Unknown action",

@@ -8,6 +8,8 @@ export async function stationAdmin_Keyboard(ctx: MyContext) {
         .row()
         .text("Yoqilg'i", "gas_info")
         .text("Ish vaqti", "time")
+        .row()
+        .text("Bandlik darajasi","busyness")
 
     const username = ctx.from?.first_name || "Admin";
     await ctx.reply(`Hayrli kun, ${username}! Quyidagi menyudan tanlang:`, {
