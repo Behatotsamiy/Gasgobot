@@ -1,5 +1,6 @@
 import { StationModel } from "../Models/Station.ts";
 import { UserModel } from "../Models/User.ts";
+import { stationInfo } from "../commands/stationAdmin/stationAdminsCommands.ts";
 import { MyContext } from "../types.ts";
 import { InlineKeyboard } from "grammy";
 
@@ -15,15 +16,14 @@ type stn = {
 };
 
 export async function StaitonShort(name: string, id: string, ctx: MyContext) {
-    await ctx.deleteMessage();
-    
     const keyboard = new InlineKeyboard()
-        .text(`Malumot`, `user_station_info:${id}`)
-        .text(`O'chirib tashlash`, `delete_station:${id}`)
-    
+      .text(`Malumot`, `user_station_info:${id}`)
+      .text(`O'chirib tashlash`, `delete_station:${id}`);
+  
     await ctx.reply(name, { reply_markup: keyboard });
-}
-
+  }
+  
+  
 export async function Stationlong(station: stn, ctx: MyContext) {
     await ctx.deleteMessage();
     
@@ -44,7 +44,6 @@ export async function Stationlong(station: stn, ctx: MyContext) {
 }
 
 export async function editStation(ctx: MyContext, id: unknown, call: string | undefined) {
-    await ctx.deleteMessage();
 
     if (call === "station_name_change") {
         ctx.session.step = "station_name_change";
@@ -210,7 +209,8 @@ export async function handleFuelDone(ctx: MyContext) {
     ctx.session.station = undefined;
     ctx.session.editingStationId = undefined;
     
-    return ctx.answerCallbackQuery();
+    return stationInfo(ctx);
+
 }
 
 export async function handleStationNameUpdate(ctx: MyContext, newName: string) {

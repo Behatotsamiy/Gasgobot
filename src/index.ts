@@ -16,6 +16,8 @@ import { Station_Admin } from "./commands/stationAdmin/stationAdmin.ts";
 import { handleAddStationName, handleStationCallbacks, handleStationLocation } from "./keyboards/addStation.ts"
 import { parsePrices } from "./utils/parsePrice.ts";
 import { StationModel } from "./Models/Station.ts";
+import { stationAdmin_Keyboard } from "./keyboards/stationAdminKeyboard.ts";
+import { stationInfo } from "./commands/stationAdmin/stationAdminsCommands.ts";
 
 dotenv.config();
 const Key = process.env.BOT_TOKEN;
@@ -53,7 +55,6 @@ bot.on("message:location", async (ctx) => {
 });
 
 bot.on("callback_query:data", HandleCallbackQuery);
-
 bot.on("message:text", async (ctx, next) => {
   const userId = ctx.from?.id;
 
@@ -80,7 +81,7 @@ bot.on("message:text", async (ctx, next) => {
       return ctx.reply("❌ Format noto'g'ri. Har bir qatorda: `Ai-92: 12300` bo'lishi kerak.");
     }
 
-    ctx.session.broadcastPreview = JSON.stringify(parsed); // temporary save
+    ctx.session.broadcastPreview = JSON.stringify(parsed);
     ctx.session.step = "confirm_price_save";
 
     const keyboard = new InlineKeyboard()
@@ -95,8 +96,75 @@ bot.on("message:text", async (ctx, next) => {
     );
   }
 
+  if (ctx.session.step === "station_name_change") {
+    const newName = ctx.message.text;
+    const station = await StationModel.findById(ctx.session.editingStationId);
+
+    if (!station) {
+      ctx.session.step = undefined;
+      ctx.session.editingStationId = undefined;
+      return ctx.reply("❌ Stansiya topilmadi.");
+    }
+
+    station.name = newName;
+    await station.save();
+
+    ctx.session.step = undefined;
+    ctx.session.editingStationId = undefined;
+
+    await ctx.reply("✅ Shaxobcha nomi muvaffaqiyatli yangilandi.");
+    return stationInfo(ctx, station);
+  }
+
+  if (ctx.session.step === "station_location_change") {
+    const text = ctx.message.text.trim();
+    const match = text.match(/^(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)$/);
+
+    if (!match) {
+        return ctx.reply("❌ Format noto'g'ri. Misol: `42.4242, 69.6969`");
+    }
+
+    const [, latStr, lngStr] = match;
+    const lat = parseFloat(latStr);
+    const lng = parseFloat(lngStr);
+
+    // Validate coordinates
+    if (isNaN(lat) || isNaN(lng)) {
+        return ctx.reply("❌ Noto'g'ri koordinatalar. Qayta kiriting.");
+    }
+
+    try {
+        const station = await StationModel.findById(ctx.session.editingStationId);
+
+        if (!station) {
+            ctx.session.step = undefined;
+            ctx.session.editingStationId = undefined;
+            return ctx.reply("❌ Stansiya topilmadi.");
+        }
+
+        // Ensure both lat and lng are provided
+        station.location = { 
+            lat: lat, 
+            lng: lng 
+        };
+        
+        await station.save();
+
+        ctx.session.step = undefined;
+        ctx.session.editingStationId = undefined;
+
+        await ctx.reply("✅ Joylashuv muvaffaqiyatli yangilandi.");
+        return stationInfo(ctx, station);
+
+    } catch (error) {
+        console.error("Error updating station location:", error);
+        return ctx.reply("❌ Xatolik yuz berdi. Qayta urinib ko'ring.");
+    }
+}
   await next();
 });
+
+
 
 
 // 🏷 Add station name

@@ -94,94 +94,57 @@ export async function HandleCallbackQuery(ctx: MyContext) {
   if (!data) return;
 
   try {
-    if(data === "station_admin"){
-      await ctx.deleteMessage()
+    const dynamicHandlers = [
+      [/^edit_fuel_select:/, handleEditFuelSelection],
+      [/^fuel_select:/, handleStationCallbacks],
+      [/^fuel_done$/, handleStationCallbacks],
+      [/^ownership_(confirm|deny)$/, handleStationCallbacks],
+      [/^station_busyness:/, Busyness],
+      [/^busyness_set:/, ChangeBusyness],
+      [/^toggle_station:/, toggleStation],
+      [/^user_station_info:/, userStationInfo],
+      [/^edit_station:/, stationChange],
+      [/^delete_station:/, deleteStation],
+      [/^testing_station:/, setStationToTesting],
+      [/^station_name_change:/, stationChange],
+      [/^station_gas_change:/, stationChange],
+      [/^station_location_change:/, stationChange],
+      
+      [/^admin_users(\?page=\d+)?$/, requireAdmin(adminUsersHandler)],
+      [/^pending_review:/, requireAdmin(showStationReview)],
+      [/^approve_station:/, requireAdmin(approveStation)],
+      [/^reject_station:/, requireAdmin(rejectStation)],
+      [/^view_location:/, viewStationLocation],
+      [/^fuel:.+/, findStation],
+    ];
+
+    if (data === "station_admin") {
+      await ctx.deleteMessage();
       ctx.session.step = "station_menu";
-      return stationAdmin_Keyboard(ctx)
+      await stationAdmin_Keyboard(ctx);
+    } else if (callbackHandlers[data]) {
+      await callbackHandlers[data](ctx);
+    } else {
+      const match = dynamicHandlers.find(([regex]) => regex.test(data));
+      if (match) {
+        const handler = match[1];
+        const arg = data.includes(":") ? data.split(":")[1] : undefined;
+        await handler(ctx, arg);
+      } else {
+        console.warn(`Unknown callback data: ${data}`);
+        await ctx.answerCallbackQuery({ text: "Nomaʼlum amal", show_alert: true });
+        return;
+      }
     }
 
-    // ✅ Handle station EDITING fuel selection (completely separate from creation)
-    if (data.startsWith("edit_fuel_select:")) {
-      const fuelType = data.split(":")[1];
-      return await handleEditFuelSelection(ctx, fuelType);
+    await ctx.answerCallbackQuery();
+  } catch (err) {
+    console.error("Callback error:", err);
+    if ("callback_query" in ctx.update) {
+      await ctx.answerCallbackQuery({
+        text: "Xatolik yuz berdi. Qaytadan urinib ko‘ring.",
+        show_alert: true,
+      });
     }
-
-    // ✅ Handle station management callbacks for CREATION (centralized)
-    if (data.startsWith("fuel_select:") || 
-        data === "fuel_done" || 
-        data === "ownership_confirm" || 
-        data === "ownership_deny") {
-      return await handleStationCallbacks(ctx);
-    }
-    if (data.startsWith("station_busyness:")) {
-      return await Busyness(ctx);
-    }
-    
-    if (data.startsWith("busyness_set:")) {
-      return await ChangeBusyness(ctx);
-    }
-    if (data.startsWith("toggle_station:")) {
-      return await toggleStation(ctx);
-    }
-
-    const handler = callbackHandlers[data];
-    if (handler) {
-      return await handler(ctx);
-    }
-    
-    if (data.startsWith("user_station_info:")) {
-      return await userStationInfo(ctx);
-    }
-    if (data.startsWith("edit_station:")) {
-      return await stationChange(ctx);
-    }
-    if (data.startsWith("delete_station:")) {
-      return await deleteStation(ctx);
-    }
-    if (data.startsWith("testing_station:")) {
-      return await setStationToTesting(ctx);
-    }
-    if (data.startsWith("station_name_change:")) {
-      return await stationChange(ctx);
-    }
-    if (data.startsWith("station_gas_change:")) {
-      return await stationChange(ctx);
-    }
-    if (data.startsWith("station_location_change:")) {
-      return await stationChange(ctx);
-    }
-
-    if (/^admin_users(\?page=\d+)?$/.test(data)) {
-      return await requireAdmin(adminUsersHandler)(ctx);
-    }
-
-    if (data.startsWith("pending_review:")) {
-      return await requireAdmin(showStationReview)(ctx);
-    }
-
-    if (data.startsWith("approve_station:")) {
-      return await requireAdmin(approveStation)(ctx);
-    }
-
-    if (data.startsWith("reject_station:")) {
-      return await requireAdmin(rejectStation)(ctx);
-    }
-
-    if (data.startsWith("view_location:")) {
-      return await viewStationLocation(ctx);
-    }
-
-    if (/^fuel:.+/.test(data)) {
-      return await findStation(ctx);
-    }
-
-    console.warn(`Unknown callback data: ${data}`);
-    return await ctx.answerCallbackQuery({ text: "Unknown action", show_alert: true });
-  } catch (error) {
-    console.error("Error handling callback query:", error);
-    return await ctx.answerCallbackQuery({ 
-      text: "Xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.", 
-      show_alert: true 
-    });
   }
 }
