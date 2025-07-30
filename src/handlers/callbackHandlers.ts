@@ -49,6 +49,7 @@ import { editStation } from "../keyboards/manageStations.ts";
 import { handleEditFuelSelection, handleFuelDone } from "../keyboards/manageStations.ts";
 import { Busyness, BusynessMain, ChangeBusyness } from '../commands/stationAdmin/busyness.ts';
 import { confirmPriceSave, cancelPriceSave } from "../commands/stationAdmin/savePrices.js";
+import { GetUserFeedback } from '../commands/Feedback.ts';
 
 
 const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
@@ -92,6 +93,7 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   noop : (ctx:MyContext) => ctx.answerCallbackQuery({ text: "Boshqa shaxobchalar yo‘q", show_alert: true }).catch(() => {}),
   noopTwo : (ctx:MyContext) => ctx.answerCallbackQuery({ text: "Oldingi sahifa yo‘q", show_alert: true }).catch(() => {}),
 
+  feedback: GetUserFeedback,
 };
 
 export async function HandleCallbackQuery(ctx: MyContext) {
@@ -121,6 +123,8 @@ export async function HandleCallbackQuery(ctx: MyContext) {
       [/^reject_station:/, requireAdmin(rejectStation)],
       [/^view_location:/, viewStationLocation],
       [/^fuel:.+/, findStation],
+      [/^backToMenu$/, backToMenuKeyboard],
+
     ];
 
     if (data === "station_admin") {

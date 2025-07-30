@@ -10,7 +10,7 @@ export interface SessionData {
   editingStationId?: unknown;
   awaitingBroadcast?: boolean;
   broadcastPreview?: string;
-  prevMenu?: "fuel_menu" | "station_menu";
+  prevMenu?: "fuel_menu" | "station_menu" | "help_menu";
   selectedStationIds?: string[];
 }
 

@@ -18,6 +18,9 @@ import { parsePrices } from "./utils/parsePrice.ts";
 import { StationModel } from "./Models/Station.ts";
 import { stationAdmin_Keyboard } from "./keyboards/stationAdminKeyboard.ts";
 import { stationInfo } from "./commands/stationAdmin/stationAdminsCommands.ts";
+import { FeedbackModel } from "./Models/Feedback.ts";
+import { ADMINS } from "./utils/requireAdmin.ts";
+import { donateKeyboard } from "./keyboards/help.ts";
 
 dotenv.config();
 const Key = process.env.BOT_TOKEN;
@@ -160,7 +163,52 @@ bot.on("message:text", async (ctx, next) => {
         console.error("Error updating station location:", error);
         return ctx.reply("❌ Xatolik yuz berdi. Qayta urinib ko'ring.");
     }
-}
+    
+  }
+  if (ctx.session.step === "awaiting_feedback") {
+    const feedbackText = ctx.message.text.trim();
+    if (!feedbackText) {
+      return ctx.reply("❌ Fikr bo'sh bo'lmasligi kerak.");
+    }
+  
+    const user = await UserModel.findOne({ telegramId: ctx.from?.id });
+    if (!user) {
+      ctx.session.step = undefined;
+      return ctx.reply("❌ Foydalanuvchi topilmadi.");
+    }
+  
+    const lastFeedback = await FeedbackModel.findOne({ user: user._id }).sort({ createdAt: -1 });
+    const now = new Date();
+    const isAdmin = ADMINS.includes(user.telegramId);
+    
+    if (!isAdmin && lastFeedback && now.getTime() - lastFeedback.createdAt.getTime() < 10 * 60 * 1000) {
+      ctx.session.step = undefined;
+      return ctx.reply("🚫 Siz faqat har 10 daqiqada bir marta fikr yuborishingiz mumkin.");
+    }
+    
+  
+    await FeedbackModel.create({
+      user: user._id,
+      message: feedbackText,
+    });
+    
+    for (const adminId of ADMINS) {
+      if (adminId === user.telegramId) continue;
+    
+      try {
+        await ctx.api.sendMessage(
+          adminId,
+          `📩 Yangi fikr:\n\n👤 @${ctx.from?.username || "no-username"} (${ctx.from?.id})\n\n"${feedbackText}"`
+        );
+      } catch (err) {
+        console.error(`❗ Admin ${adminId}ga yuborib bo'lmadi:`, err.description);
+      }
+    }
+    
+    ctx.session.step = undefined;
+    await ctx.reply("✅ Fikringiz uchun rahmat! Adminlarimiz ko'rib chiqadi.");
+    return donateKeyboard(ctx);
+  }
   await next();
 });
 

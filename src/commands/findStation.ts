@@ -131,6 +131,10 @@ export const findStation = async (ctx: MyContext) => {
       unifiedKeyboard.text("➡️", `fuel:${fuel}:${index + 1}:${sortType}:${showFar ? "showMore" : ""}`);
     else
       unifiedKeyboard.text("|", "noop");
+    unifiedKeyboard
+      .row()
+      .text("📊 Bandlik haqida", `suggest_busyness:${station._id}`)
+      .text("💵 Narx taklif qilish", `suggest_price_station:${station._id}`);
     
     unifiedKeyboard.row().text("🔙 Ortga", "backToMenu");
     

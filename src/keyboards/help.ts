@@ -1,5 +1,5 @@
 import { InlineKeyboard } from "grammy";
-import { MyContext } from "../types.js";
+import { MyContext } from "../types.ts";
 
 export const donateKeyboard = (ctx: MyContext) => {
   ctx.answerCallbackQuery();
@@ -7,7 +7,10 @@ export const donateKeyboard = (ctx: MyContext) => {
     reply_markup: new InlineKeyboard()
       .text("💳 Pul bilan yordam qilish kartasi", "money")
       .row()
-      .text("⛽Oz shaxobcham",  "addStationKB").row()
-      .text("Orqaga" , "backToMenu")
+      .text("Fikr va taklif yuborish", "feedback")
+      .row()
+      .text("⛽Shahobcha qo'shish", "addStationKB")
+      .row()
+      .text("Orqaga", "backToMenu"),
   });
 };
