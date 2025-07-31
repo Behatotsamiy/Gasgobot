@@ -7,7 +7,7 @@ import { Station_Admin } from './stationAdmin.ts';
 
 export async function BusynessMain(ctx: MyContext) {
   const userId = ctx.from?.id;
-  await ctx.deleteMessage()
+  await ctx.deleteMessage();
   if (!userId) return;
 
   const user = await UserModel.findOne({ telegramId: userId });
@@ -38,7 +38,7 @@ export async function Busyness(ctx: MyContext) {
   const station = await StationModel.findById(stationId);
   if (!station) return ctx.reply("Shaxobcha topilmadi.");
 
-  const currentLevel = station.busyness?.level || "green";
+  const currentLevel = station.busyness?.level || "belgilanmagan";
 
   const keyboard = new InlineKeyboard()
     .text("🟢 Green", `busyness_set:${stationId}:green`).row()
@@ -71,7 +71,7 @@ export async function ChangeBusyness(ctx: MyContext) {
   station.busyness = {
     level: level as "green" | "orange" | "red",
     updatedAt: new Date(),
-    expiresAt: undefined,
+    expiresAt: new Date(Date.now() + 30 * 60 * 1000),
   };
 
   await station.save();

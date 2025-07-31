@@ -77,9 +77,9 @@ const StationSchema = new mongoose.Schema<Station>(
       level: {
         type: String,
         enum: ["green", "orange", "red"],
-        required: true,
-        default: "green",
-      },
+        required: false, 
+        default: undefined, 
+      },      
       updatedAt: {
         type: Date,
         default: Date.now,
