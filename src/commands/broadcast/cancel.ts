@@ -4,7 +4,7 @@ import { broadcastMap } from "../../utils/broadcastMap.ts";
 
 export async function cancelBroadcast(ctx: MyContext) {
   await ctx.answerCallbackQuery("Broadcast cancelled");
-  await ctx.deleteMessage();
+  try{await ctx.deleteMessage()}catch{console.log("Message delete did not work baka")}
   broadcastMap.delete(ctx.from?.id);
   admin(ctx);
 }

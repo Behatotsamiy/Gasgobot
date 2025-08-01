@@ -28,7 +28,7 @@ const getLocationInputKeyboard = () => new InlineKeyboard()
   .text("🔙 Orqaga", "backToMenu");
 
 export const addStation = async (ctx: MyContext) => {
-  await ctx.deleteMessage().catch(() => {});
+  try{await ctx.deleteMessage()}catch{console.log("Message delete did not work baka")}
   ctx.session.step = "name";
   
   if (!ctx.session.prevMenu) {

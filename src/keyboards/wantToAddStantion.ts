@@ -1,8 +1,15 @@
 import { InlineKeyboard } from "grammy";
+import { StationModel } from "../Models/Station.ts";
+import { UserModel } from "../Models/User.ts";
 import { MyContext } from "../types.ts";
 
 export async function wantTo_AddStantion(ctx: MyContext) {
   ctx.session.prevMenu = "station_menu";
+
+  const user = await UserModel.findOne({ telegramId: ctx.from?.id });
+  if (!user) return ctx.reply("❌ Foydalanuvchi topilmadi.");
+
+  const userStations = await StationModel.find({ owner: user._id });
 
   const keyboard = new InlineKeyboard()
     .text("➕ Qo'shish", "addStationKB")
@@ -10,7 +17,7 @@ export async function wantTo_AddStantion(ctx: MyContext) {
     .text("⬅️ Ortga qaytish", "backToMenu");
 
   const messageText =
-    ctx.session.step === "confirm_add_station"
+    userStations.length === 0
       ? "❗ Sizda birorta ham stansiya ro'yxatdan o'tmagan.\nYangi stansiya qo'shmoqchimisiz?"
       : "Yana bir stansiya qo‘shmoqchimisiz?";
 

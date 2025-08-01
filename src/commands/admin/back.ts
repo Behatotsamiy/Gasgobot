@@ -3,6 +3,6 @@ import { admin } from "./admin.ts";
 
 export async function BacktoAdmin(ctx:MyContext) {
     await ctx.answerCallbackQuery();
-    await ctx.deleteMessage();
+    try{await ctx.deleteMessage()}catch{console.log("Message delete did not work baka")}
     await admin(ctx);
 }

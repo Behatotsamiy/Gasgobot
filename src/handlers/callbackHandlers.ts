@@ -1,4 +1,4 @@
-import { MyContext } from './../types.js';
+import { MyContext } from "./../types.js";
 import { cancelBroadcast } from "../commands/broadcast/cancel.js";
 import { confirmBroadcast } from "../commands/broadcast/confirm.js";
 import {
@@ -25,6 +25,11 @@ import {
   confirmStationSelection,
   handleMyPrices,
   handleCompetitorPrices,
+  handleStationMainMenu,
+  confirmPriceSave,
+  cancelPriceSave,
+  skipFuelPrice,
+  handleFuelPriceInput, // Add this export to your stationAdminsCommands.ts
 } from "../commands/stationAdmin/stationAdminsCommands.js";
 
 import { profile } from "../commands/profile.js";
@@ -34,23 +39,24 @@ import { adminUsersHandler } from "../commands/admin/users.js";
 import { BacktoAdmin } from "../commands/admin/back.js";
 import { AdminBroadcast } from "../commands/admin/broadcast.js";
 import { requireAdmin } from "../utils/requireAdmin.js";
-import { 
-  adminPendingStations, 
-  showStationReview, 
-  approveStation, 
-  rejectStation, 
-  viewStationLocation, 
-  setStationToTesting
+import {
+  adminPendingStations,
+  showStationReview,
+  approveStation,
+  rejectStation,
+  viewStationLocation,
+  setStationToTesting,
 } from "../commands/admin/adminPendingStations.ts";
 import { Station_Admin } from "../commands/stationAdmin/stationAdmin.ts";
-import { editStation } from "../keyboards/manageStations.ts";
+import { editStation } from "../commands/stationAdmin/manageStations.ts";
 
-// Import your edit fuel handlers (you'll need to create these)
-import { handleEditFuelSelection, handleFuelDone } from "../keyboards/manageStations.ts";
-import { Busyness, BusynessMain, ChangeBusyness } from '../commands/stationAdmin/busyness.ts';
-import { confirmPriceSave, cancelPriceSave } from "../commands/stationAdmin/savePrices.js";
-import { GetUserFeedback } from '../commands/Feedback.ts';
-
+// Import your edit fuel handlers
+import {
+  handleEditFuelSelection,
+  handleFuelDone,
+} from "../commands/stationAdmin/manageStations.ts";
+import { Busyness, ChangeBusyness } from "../commands/stationAdmin/busyness.ts";
+import { GetUserFeedback } from "../commands/Feedback.ts";
 
 const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   profile,
@@ -60,23 +66,17 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   "menu:fuel": showFuelSelection,
   location_change: location_change,
   "location:yes": locationChangeAccept,
-  
-  // Station management
-  busyness: BusynessMain,
+
   fuel_changed: editStation,
   confirm_price_save: confirmPriceSave,
   cancel_price_save: cancelPriceSave,
-  pricelist: pricelist,
+  skip_fuel_price: skipFuelPrice, // Add this
+  cancel_price_setting: cancelPriceSave, // Add this for canceling price setting
   addStationKB: addStation,
   station_info: stationInfo,
   station_change: stationChange,
-  "station_share_location": handleStationCallbacks,
-  change_prices: changePrice,
-  view_prices: currentPrices,
+  station_share_location: handleStationCallbacks,
   confirm_station_selection: confirmStationSelection,
-  my_prices: handleMyPrices,
-  competitor_prices: handleCompetitorPrices,
-
   // Edit fuel handlers
   edit_fuel_complete: handleFuelDone,
 
@@ -90,8 +90,17 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   broadcast_cancel: cancelBroadcast,
 
   // noop
-  noop : (ctx:MyContext) => ctx.answerCallbackQuery({ text: "Boshqa shaxobchalar yo‘q", show_alert: true }).catch(() => {}),
-  noopTwo : (ctx:MyContext) => ctx.answerCallbackQuery({ text: "Oldingi sahifa yo‘q", show_alert: true }).catch(() => {}),
+  noop: (ctx: MyContext) =>
+    ctx
+      .answerCallbackQuery({
+        text: "Boshqa shaxobchalar yo'q",
+        show_alert: true,
+      })
+      .catch(() => {}),
+  noopTwo: (ctx: MyContext) =>
+    ctx
+      .answerCallbackQuery({ text: "Oldingi sahifa yo'q", show_alert: true })
+      .catch(() => {}),
 
   feedback: GetUserFeedback,
 };
@@ -116,7 +125,17 @@ export async function HandleCallbackQuery(ctx: MyContext) {
       [/^station_name_change:/, stationChange],
       [/^station_gas_change:/, stationChange],
       [/^station_location_change:/, stationChange],
-      
+      [/^my_prices:/, handleMyPrices],
+      [/^station_menu:/, handleStationMainMenu],
+      [/^confirm_price_save/, confirmPriceSave],
+      [/^cancel_price_save/, cancelPriceSave],
+      [/^skip_fuel_price$/, skipFuelPrice],
+      [/^change_prices:/, changePrice],
+      [/^pricelist:/, pricelist],
+      [/^view_prices:/, currentPrices],
+      [/^competitor_prices:/, handleCompetitorPrices],
+
+
       [/^admin_users(\?page=\d+)?$/, requireAdmin(adminUsersHandler)],
       [/^pending_review:/, requireAdmin(showStationReview)],
       [/^approve_station:/, requireAdmin(approveStation)],
@@ -124,11 +143,15 @@ export async function HandleCallbackQuery(ctx: MyContext) {
       [/^view_location:/, viewStationLocation],
       [/^fuel:.+/, findStation],
       [/^backToMenu$/, backToMenuKeyboard],
-
+      [/^add_station$/, addStation],
     ];
 
     if (data === "station_admin") {
-      await ctx.deleteMessage();
+      try {
+        await ctx.deleteMessage();
+      } catch {
+        console.log("Message delete did not work baka");
+      }
       ctx.session.step = "station_menu";
       await stationAdmin_Keyboard(ctx);
     } else if (callbackHandlers[data]) {
@@ -141,7 +164,10 @@ export async function HandleCallbackQuery(ctx: MyContext) {
         await handler(ctx, arg);
       } else {
         console.warn(`Unknown callback data: ${data}`);
-        await ctx.answerCallbackQuery({ text: "Nomaʼlum amal", show_alert: true });
+        await ctx.answerCallbackQuery({
+          text: "Nomaʼlum amal",
+          show_alert: true,
+        });
         return;
       }
     }
@@ -151,7 +177,7 @@ export async function HandleCallbackQuery(ctx: MyContext) {
     console.error("Callback error:", err);
     if ("callback_query" in ctx.update) {
       await ctx.answerCallbackQuery({
-        text: "Xatolik yuz berdi. Qaytadan urinib ko‘ring.",
+        text: "Xatolik yuz berdi. Qaytadan urinib ko'ring.",
         show_alert: true,
       });
     }

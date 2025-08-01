@@ -17,7 +17,7 @@ import { handleAddStationName, handleStationCallbacks, handleStationLocation } f
 import { parsePrices } from "./utils/parsePrice.ts";
 import { StationModel } from "./Models/Station.ts";
 import { stationAdmin_Keyboard } from "./keyboards/stationAdminKeyboard.ts";
-import { stationInfo } from "./commands/stationAdmin/stationAdminsCommands.ts";
+import { handleFuelPriceInput, stationInfo } from "./commands/stationAdmin/stationAdminsCommands.ts";
 import { FeedbackModel } from "./Models/Feedback.ts";
 import { ADMINS } from "./utils/requireAdmin.ts";
 import { donateKeyboard } from "./keyboards/help.ts";
@@ -58,6 +58,7 @@ bot.on("message:location", async (ctx) => {
 });
 
 bot.on("callback_query:data", HandleCallbackQuery);
+
 bot.on("message:text", async (ctx, next) => {
   const userId = ctx.from?.id;
 
@@ -76,27 +77,9 @@ bot.on("message:text", async (ctx, next) => {
     return;
   }
 
+  // NEW: Handle individual fuel price input
   if (ctx.session.step === "setting_price") {
-    const text = ctx.message.text;
-    const parsed = parsePrices(text);
-
-    if (Object.keys(parsed).length === 0) {
-      return ctx.reply("❌ Format noto'g'ri. Har bir qatorda: `Ai-92: 12300` bo'lishi kerak.");
-    }
-
-    ctx.session.broadcastPreview = JSON.stringify(parsed);
-    ctx.session.step = "confirm_price_save";
-
-    const keyboard = new InlineKeyboard()
-      .text("✅ Saqlash", "confirm_price_save")
-      .text("❌ Bekor qilish", "cancel_price_save");
-
-    return ctx.reply(
-      `Siz kiritgan narxlar:\n\n${Object.entries(parsed)
-        .map(([fuel, price]) => `⛽ ${fuel}: ${Number(price).toLocaleString()} so'm`)
-        .join("\n")}\n\nTasdiqlaysizmi?`,
-      { reply_markup: keyboard }
-    );
+    return handleFuelPriceInput(ctx, ctx.message.text);
   }
 
   if (ctx.session.step === "station_name_change") {
@@ -116,7 +99,7 @@ bot.on("message:text", async (ctx, next) => {
     ctx.session.editingStationId = undefined;
 
     await ctx.reply("✅ Shaxobcha nomi muvaffaqiyatli yangilandi.");
-    return stationInfo(ctx, station);
+    return stationInfo(ctx);
   }
 
   if (ctx.session.step === "station_location_change") {
@@ -157,7 +140,7 @@ bot.on("message:text", async (ctx, next) => {
         ctx.session.editingStationId = undefined;
 
         await ctx.reply("✅ Joylashuv muvaffaqiyatli yangilandi.");
-        return stationInfo(ctx, station);
+        return stationInfo(ctx);
 
     } catch (error) {
         console.error("Error updating station location:", error);
@@ -186,7 +169,7 @@ bot.on("message:text", async (ctx, next) => {
       return ctx.reply("🚫 Siz faqat har 10 daqiqada bir marta fikr yuborishingiz mumkin.");
     }
     
-  
+
     await FeedbackModel.create({
       user: user._id,
       message: feedbackText,
