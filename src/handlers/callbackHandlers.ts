@@ -59,7 +59,6 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   profile,
   backToMenu: backToMenuKeyboard,
   donate: donateKeyboard,
-  money: moneyKeyboard,
   "menu:fuel": showFuelSelection,
   location_change: location_change,
   "location:yes": locationChangeAccept,
@@ -97,7 +96,12 @@ export async function HandleCallbackQuery(ctx: MyContext) {
 
   try {
     const dynamicHandlers: [RegExp, (ctx: MyContext, arg?: string) => Promise<unknown>][] = [
-      [/^edit_fuel_select:(.+)/, handleEditFuelSelection],
+      [/^edit_fuel_select:(.+)/, async (ctx) => {
+        const match = ctx.match?.[1];
+        if (!match) return Promise.resolve();
+        return handleEditFuelSelection(ctx, match);
+      }],
+      
       [/^fuel_select:/, handleStationCallbacks],
       [/^fuel_done$/, handleStationCallbacks],
       [/^ownership_(confirm|deny)$/, handleStationCallbacks],
@@ -128,6 +132,8 @@ export async function HandleCallbackQuery(ctx: MyContext) {
       [/^fuel:.+/, findStation],
       [/^backToMenu$/, backToMenuKeyboard],
       [/^add_station$/, addStation],
+      [/^money$/, moneyKeyboard],
+
     ];
 
     if (data === "station_admin") {

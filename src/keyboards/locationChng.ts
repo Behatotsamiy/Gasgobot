@@ -1,5 +1,4 @@
 import { MyContext } from "../types.ts";
-import { locationKeyboard } from "./_index.ts";
 
 export async function locationChangeAccept(ctx: MyContext) {
   try {

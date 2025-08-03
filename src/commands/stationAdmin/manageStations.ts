@@ -15,7 +15,7 @@ type stn = {
     lat: number;
     lng: number;
   };
-  pricing?: Map<string, number>;
+  pricing: Map<string, number> | { [key: string]: number };
   busyness_level?: string;
 };
 
@@ -31,14 +31,18 @@ export async function Stationlong(station: stn, ctx: MyContext) {
     `⛽ Yonilg'i: ${station.fuel_types.join(", ")}\n` +
     `📍 Koordinatalar: ${station.location.lat}, ${station.location.lng}\n` +
     `📊 Status: ${station.status}\n`;
-
-  if (station.pricing && station.pricing.size > 0) {
-    msg += `💵 Narxlar:\n`;
-    for (const [fuel, price] of station.pricing.entries()) {
-      msg += `   • ${fuel}: ${price.toLocaleString()} so'm\n`;
+    if (station.pricing instanceof Map) {
+      for (const [fuel, price] of station.pricing.entries()) {
+        msg += `   • ${fuel}: ${price.toLocaleString()} so'm\n`;
+      }
+    } else {
+      const pricing = station.pricing as { [key: string]: number };
+      for (const fuel in pricing) {
+        const price = pricing[fuel];
+        msg += `   • ${fuel}: ${price.toLocaleString()} so'm\n`;
+      }
     }
-  }
-
+    
   if (station.busyness_level) {
     msg += `🚦 Bandlik: ${station.busyness_level}\n`;
   }
@@ -60,7 +64,7 @@ export async function editStation(ctx: MyContext, id: unknown, call: string | un
     ctx.session.step = "station_gas_change";
     ctx.session.editingStationId = id;
 
-    const user = await UserModel.findOne({ telegramId: ctx.from.id });
+    const user = await UserModel.findOne({ telegramId: ctx.from?.id });
     if (!user) return ctx.reply("❌ Foydalanuvchi topilmadi.");
 
     const station = await StationModel.findById(id);
@@ -148,7 +152,7 @@ export async function handleFuelDone(ctx: MyContext) {
     });
   }
 
-  const user = await UserModel.findOne({ telegramId: ctx.from.id });
+  const user = await UserModel.findOne({ telegramId: ctx.from?.id });
   if (!user) return ctx.reply("❌ Foydalanuvchi topilmadi.");
 
   const updated = await StationModel.findByIdAndUpdate(
@@ -168,7 +172,7 @@ export async function handleFuelDone(ctx: MyContext) {
 }
 
 export async function handleStationNameUpdate(ctx: MyContext, newName: string) {
-  const user = await UserModel.findOne({ telegramId: ctx.from.id });
+  const user = await UserModel.findOne({ telegramId: ctx.from?.id });
   if (!user) return ctx.reply("❌ Foydalanuvchi topilmadi.");
 
   const updated = await StationModel.findByIdAndUpdate(
@@ -197,7 +201,7 @@ export async function handleStationLocationUpdate(ctx: MyContext, locationInput:
     return ctx.reply("❌ Noto'g'ri format. Iltimos, 42.4242, 69.6969 formatida kiriting yoki lokatsiya yuboring.");
   }
 
-  const user = await UserModel.findOne({ telegramId: ctx.from.id });
+  const user = await UserModel.findOne({ telegramId: ctx.from?.id });
   if (!user) return ctx.reply("❌ Foydalanuvchi topilmadi.");
 
   const updated = await StationModel.findByIdAndUpdate(

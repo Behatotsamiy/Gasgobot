@@ -10,7 +10,7 @@ export async function cancelBroadcast(ctx: MyContext) {
     console.log("Message delete did not work baka");
   }
 
-  if (ctx.from) broadcastMap.delete(ctx.from.id);
+  if (ctx.from) broadcastMap.delete(ctx.from?.id);
 
   admin(ctx);
 }

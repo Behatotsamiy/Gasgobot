@@ -1,4 +1,4 @@
-import bodyParser from 'body-parser';
+import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import { Bot, InlineKeyboard } from "grammy";
 import { GrammyError, HttpError, session } from "grammy";
@@ -7,26 +7,31 @@ import { hydrate } from "@grammyjs/hydrate";
 import { MyContext, SessionData } from "./types.js";
 import { UserModel } from "./Models/User.js";
 import { findStation, start, admin } from "./commands/_index.js";
-import {
-  locationKeyboard,
-  sendLocationRequestKeyboard,
-} from "./commands/location.ts";
+import { locationRequestKeyboard } from "./keyboards/location.ts";
 import { HandleCallbackQuery } from "./handlers/callbackHandlers.ts";
 import { broadcastMap } from "./utils/broadcastMap.ts";
 import { Station_Admin } from "./commands/stationAdmin/stationAdmin.ts";
-import { handleAddStationName, handleStationCallbacks, handleStationLocation } from "./keyboards/addStation.ts"
+import {
+  handleAddStationName,
+  handleStationCallbacks,
+  handleStationLocation,
+} from "./keyboards/addStation.ts";
 import { parsePrices } from "./utils/parsePrice.ts";
 import { StationModel } from "./Models/Station.ts";
 import { stationAdmin_Keyboard } from "./keyboards/stationAdminKeyboard.ts";
-import { handleFuelPriceInput, stationInfo } from "./commands/stationAdmin/stationAdminsCommands.ts";
+import {
+  handleFuelPriceInput,
+  stationInfo,
+} from "./commands/stationAdmin/stationAdminsCommands.ts";
 import { FeedbackModel } from "./Models/Feedback.ts";
 import { ADMINS } from "./utils/requireAdmin.ts";
 import { donateKeyboard } from "./keyboards/help.ts";
-import express from "express"
+import express from "express";
+import { handleLocationSharing } from "./handlers/handleLocation.ts";
 
 dotenv.config();
 const Key = process.env.BOT_TOKEN;
-const mongo_uri: string =`mongodb+srv://bahtiyorov757:password757@cluster0.ycr0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const mongo_uri: string = `mongodb+srv://bahtiyorov757:password757@cluster0.ycr0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 if (!Key) throw new Error("BOT_TOKEN is not defined in .env file");
 if (!mongo_uri) throw new Error("MONGO_URI is not defined in .env file");
@@ -37,7 +42,7 @@ bot.use(
   session({
     initial: (): SessionData => ({
       step: undefined,
-      station: { name: "", fuel_types: [] },
+      station: { name: "", fuel_types: [], location: { lat: 0, lng: 0 } },
       awaitingBroadcast: false,
       broadcastPreview: "",
     }),
@@ -53,10 +58,10 @@ bot.command("ishla", Station_Admin);
 bot.on("message:location", async (ctx) => {
   if (ctx.session.step === "location") {
     const handled = await handleStationLocation(ctx);
-    if (handled) return; 
+    if (handled) return;
   }
 
-  return locationKeyboard(ctx);
+  return handleLocationSharing(ctx);
 });
 
 bot.on("callback_query:data", HandleCallbackQuery);
@@ -109,7 +114,7 @@ bot.on("message:text", async (ctx, next) => {
     const match = text.match(/^(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)$/);
 
     if (!match) {
-        return ctx.reply("❌ Format noto'g'ri. Misol: `42.4242, 69.6969`");
+      return ctx.reply("❌ Format noto'g'ri. Misol: `42.4242, 69.6969`");
     }
 
     const [, latStr, lngStr] = match;
@@ -118,87 +123,91 @@ bot.on("message:text", async (ctx, next) => {
 
     // Validate coordinates
     if (isNaN(lat) || isNaN(lng)) {
-        return ctx.reply("❌ Noto'g'ri koordinatalar. Qayta kiriting.");
+      return ctx.reply("❌ Noto'g'ri koordinatalar. Qayta kiriting.");
     }
 
     try {
-        const station = await StationModel.findById(ctx.session.editingStationId);
+      const station = await StationModel.findById(ctx.session.editingStationId);
 
-        if (!station) {
-            ctx.session.step = undefined;
-            ctx.session.editingStationId = undefined;
-            return ctx.reply("❌ Stansiya topilmadi.");
-        }
-
-        // Ensure both lat and lng are provided
-        station.location = { 
-            lat: lat, 
-            lng: lng 
-        };
-        
-        await station.save();
-
+      if (!station) {
         ctx.session.step = undefined;
         ctx.session.editingStationId = undefined;
+        return ctx.reply("❌ Stansiya topilmadi.");
+      }
 
-        await ctx.reply("✅ Joylashuv muvaffaqiyatli yangilandi.");
-        return stationInfo(ctx);
+      // Ensure both lat and lng are provided
+      station.location = {
+        lat: lat,
+        lng: lng,
+      };
 
+      await station.save();
+
+      ctx.session.step = undefined;
+      ctx.session.editingStationId = undefined;
+
+      await ctx.reply("✅ Joylashuv muvaffaqiyatli yangilandi.");
+      return stationInfo(ctx);
     } catch (error) {
-        console.error("Error updating station location:", error);
-        return ctx.reply("❌ Xatolik yuz berdi. Qayta urinib ko'ring.");
+      console.error("Error updating station location:", error);
+      return ctx.reply("❌ Xatolik yuz berdi. Qayta urinib ko'ring.");
     }
-    
   }
   if (ctx.session.step === "awaiting_feedback") {
     const feedbackText = ctx.message.text.trim();
     if (!feedbackText) {
       return ctx.reply("❌ Fikr bo'sh bo'lmasligi kerak.");
     }
-  
+
     const user = await UserModel.findOne({ telegramId: ctx.from?.id });
     if (!user) {
       ctx.session.step = undefined;
       return ctx.reply("❌ Foydalanuvchi topilmadi.");
     }
-  
-    const lastFeedback = await FeedbackModel.findOne({ user: user._id }).sort({ createdAt: -1 });
+
+    const lastFeedback = await FeedbackModel.findOne({ user: user._id }).sort({
+      createdAt: -1,
+    });
     const now = new Date();
     const isAdmin = ADMINS.includes(user.telegramId);
-    
-    if (!isAdmin && lastFeedback && now.getTime() - lastFeedback.createdAt.getTime() < 10 * 60 * 1000) {
+
+    if (
+      !isAdmin &&
+      lastFeedback &&
+      now.getTime() - lastFeedback.createdAt.getTime() < 10 * 60 * 1000
+    ) {
       ctx.session.step = undefined;
-      return ctx.reply("🚫 Siz faqat har 10 daqiqada bir marta fikr yuborishingiz mumkin.");
+      return ctx.reply(
+        "🚫 Siz faqat har 10 daqiqada bir marta fikr yuborishingiz mumkin."
+      );
     }
-    
 
     await FeedbackModel.create({
       user: user._id,
       message: feedbackText,
     });
-    
+
     for (const adminId of ADMINS) {
       if (adminId === user.telegramId) continue;
-    
+
       try {
         await ctx.api.sendMessage(
           adminId,
-          `📩 Yangi fikr:\n\n👤 @${ctx.from?.username || "no-username"} (${ctx.from?.id})\n\n"${feedbackText}"`
+          `📩 Yangi fikr:\n\n👤 @${ctx.from?.username || "no-username"} (${
+            ctx.from?.id
+          })\n\n"${feedbackText}"`
         );
       } catch (err) {
-        console.error(`❗ Admin ${adminId}ga yuborib bo'lmadi:`, err.description);
+        return console.error(`❗ Admin ${adminId}ga yuborib bo'lmadi`);
       }
     }
-    
+
     ctx.session.step = undefined;
     await ctx.reply("✅ Fikringiz uchun rahmat! Adminlarimiz ko'rib chiqadi.");
     return donateKeyboard(ctx);
   }
   await next();
 });
-
-
-
 
 // 🏷 Add station name
 bot.on("message:text", handleAddStationName);
@@ -216,7 +225,7 @@ bot.on("message:contact", async (ctx) => {
   );
 
   await ctx.reply("✅ Telefon raqamingiz saqlandi!");
-  await sendLocationRequestKeyboard(ctx); // → prompt for location
+  return handleLocationSharing(ctx);
 });
 
 // 🚨 Error logging

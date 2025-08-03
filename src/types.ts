@@ -1,4 +1,6 @@
 import { Context } from "grammy";
+import { HydrateFlavor } from "@grammyjs/hydrate";
+
 
 export interface SessionData {
   step?: string;
@@ -18,8 +20,7 @@ export interface SessionData {
   pendingPrices?: { [fuelType: string]: number };
   currentFuel?: string;
   currentStationId?: string;
+  lastLocationMsgId?: number;
 }
 
-export type MyContext = Context & {
-  session: SessionData;
-};
+export type MyContext = HydrateFlavor<Context & { session: SessionData }>;

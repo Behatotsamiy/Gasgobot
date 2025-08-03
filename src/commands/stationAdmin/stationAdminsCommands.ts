@@ -87,6 +87,13 @@ export const userStationInfo = async (ctx: MyContext) => {
   if (!station) {
     return ctx.reply("❌ Stansiya topilmadi");
   }
+
+  const plainPricing: { [key: string]: number } = {};
+  for (const [fuel, price] of Object.entries(station.pricing)) {
+    plainPricing[fuel] = price;
+  }
+  
+
   return Stationlong(station, ctx);
 };
 
@@ -272,11 +279,21 @@ export const confirmPriceSave = async (ctx: MyContext) => {
       return ctx.reply("❌ Stansiya topilmadi");
     }
 
-    for (const [fuel, price] of Object.entries(pendingPrices!)) {
-      if (station.fuel_types.includes(fuel)) {
-        station.pricing.set(fuel, price as number);
+    if (station.pricing instanceof Map) {
+      for (const [fuel, price] of Object.entries(pendingPrices!)) {
+        if (station.fuel_types.includes(fuel)) {
+          station.pricing.set(fuel, price);
+        }
+      }
+    } else {
+      // fallback for plain object structure
+      for (const [fuel, price] of Object.entries(pendingPrices!)) {
+        if (station.fuel_types.includes(fuel)) {
+          (station.pricing as any)[fuel] = price;
+        }
       }
     }
+    
 
     await station.save();
 
@@ -354,9 +371,14 @@ export const handleMyPrices = async (ctx: MyContext) => {
 
   let msg = `⛽ **${station.name}** narxlari:\n\n`;
   for (const fuel of station.fuel_types) {
-    const price = station.pricing.get(fuel);
+    const price =
+      station.pricing instanceof Map
+        ? station.pricing.get(fuel)
+        : station.pricing[fuel];
+  
     msg += `• ${fuel}: ${price ? `${price.toLocaleString()} so'm` : "yo'q"}\n`;
   }
+  
 
   const keyboard = new InlineKeyboard().text(
     "⬅️ Ortga",
@@ -397,12 +419,16 @@ export const handleCompetitorPrices = async (ctx: MyContext) => {
   for (const station of competitors) {
     if (!station.pricing) continue;
     for (const fuel of station.fuel_types) {
-      const price = station.pricing.get(fuel);
+      const price = station.pricing instanceof Map
+        ? station.pricing.get(fuel)
+        : station.pricing[fuel];
+    
       if (typeof price === "number") {
         if (!fuelPrices[fuel]) fuelPrices[fuel] = [];
         fuelPrices[fuel].push(price);
       }
     }
+    
   }
 
   if (Object.keys(fuelPrices).length === 0) {

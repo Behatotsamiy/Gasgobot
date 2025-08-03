@@ -35,7 +35,12 @@ export const addStation = async (ctx: MyContext) => {
     ctx.session.prevMenu = "fuel_menu";
   }
   
-  ctx.session.station = { name: "", fuel_types: [] };
+  ctx.session.station = {
+    name: "",
+    fuel_types: [],
+    location: { lat: 0, lng: 0 },
+  };
+  
 
   await ctx.reply("📝 Stansiya nomini kiriting:", {
     reply_markup: new InlineKeyboard().text("🔙 Orqaga", "backToMenu")
@@ -49,12 +54,15 @@ export const handleAddStationName = async (ctx: MyContext) => {
   if (!text) return ctx.reply("❌ Nom bo'sh bo'lishi mumkin emas!");
 
   if (step === "name") {
+    if (!ctx.session.station) return ctx.reply("❗ Stansiya topilmadi.");
+  
     ctx.session.station.name = text;
     ctx.session.step = "fuel";
     await ctx.reply("⛽ Yonilg'i turini tanlang:", {
-      reply_markup: getFuelKeyboard([])
+      reply_markup: getFuelKeyboard([]),
     });
   }
+  
   else if (step === "location") {
     const match = text.match(/^([-+]?\d*\.?\d+),\s*([-+]?\d*\.?\d+)$/);
     if (!match) {
@@ -69,8 +77,9 @@ export const handleAddStationName = async (ctx: MyContext) => {
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       return ctx.reply("❌ Koordinatalar noto'g'ri! Lat: -90 to 90, Lng: -180 to 180");
     }
-
+    if (!ctx.session.station) return ctx.reply("❗ Stansiya ma'lumotlari topilmadi.");
     ctx.session.station.location = { lat, lng };
+    
     ctx.session.step = "ownership";
     
     await ctx.reply(
@@ -89,7 +98,13 @@ export const handleStationLocation = async (ctx: MyContext) => {
 
   const { latitude, longitude } = location;
   
-  ctx.session.station.location = { lat: latitude, lng: longitude };
+  if (!ctx.session.station) return ctx.reply("❗ Stansiya ma'lumotlari topilmadi.");
+  ctx.session.station.location = {
+    lat: location.latitude,
+    lng: location.longitude,
+  };
+  
+  
   ctx.session.step = "ownership";
   
   await ctx.reply(
@@ -115,19 +130,18 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
     console.log("⛽ fuel_select triggered");
     console.log("🧠 Session.step:", ctx.session.step);
     console.log("🧠 Session.station:", ctx.session.station);
-
-    if (!["fuel", "station_gas_change"].includes(ctx.session.step)) {
-      console.log("🚫 Incorrect session.step — expected 'fuel' or 'station_gas_change'");
+  
+    if (!["fuel", "station_gas_change"].includes(ctx.session.step ?? "") || !ctx.session.station) {
+      console.log("🚫 Incorrect session.step or station missing");
       return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
-    }
-    
-
+    }    
+  
     const fuelType = data.split(":")[1];
-    const currentFuels = ctx.session?.station?.fuel_types || [];
-
+    const currentFuels = ctx.session.station.fuel_types || [];
+  
     console.log("🛠️ Selected fuelType:", fuelType);
     console.log("📦 Current fuels before change:", currentFuels);
-
+  
     if (currentFuels.includes(fuelType)) {
       ctx.session.station.fuel_types = currentFuels.filter(f => f !== fuelType);
       console.log("➖ Fuel removed:", fuelType);
@@ -135,28 +149,24 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
       ctx.session.station.fuel_types = [...currentFuels, fuelType];
       console.log("➕ Fuel added:", fuelType);
     }
-
+  
     console.log("📦 Current fuels after change:", ctx.session.station.fuel_types);
-
+  
     await ctx.editMessageReplyMarkup({
-      reply_markup: getFuelKeyboard(ctx.session.station.fuel_types)
+      reply_markup: getFuelKeyboard(ctx.session.station.fuel_types),
     });
-
+  
     return ctx.answerCallbackQuery({
-      text: currentFuels.includes(fuelType) 
-        ? `❌ ${fuelType} olib tashlandi` 
-        : `✅ ${fuelType} tanlandi`
+      text: currentFuels.includes(fuelType)
+        ? `❌ ${fuelType} olib tashlandi`
+        : `✅ ${fuelType} tanlandi`,
     });
   }
-
-  if (data === "fuel_done") {
-    if (!["fuel", "station_gas_change"].includes(ctx.session.step)) {
-      return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
-    }
   
-    if (!ctx.session.station) {
-      return ctx.answerCallbackQuery({ text: "❌ Stansiya maʼlumotlari yoʻq", show_alert: true });
-    }
+  if (data === "fuel_done") {
+    if (!["fuel", "station_gas_change"].includes(ctx.session.step ?? "") || !ctx.session.station) {
+      return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
+    }  
   
     if (!ctx.session.station.fuel_types || ctx.session.station.fuel_types.length === 0) {
       return ctx.answerCallbackQuery({
@@ -193,7 +203,8 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
   if (data === "ownership_confirm") {
     if (ctx.session.step !== "ownership") return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
     
-    const { name, fuel_types, location } = ctx.session.station;
+    const { name, fuel_types, location } = ctx.session.station!;
+
     const userId = ctx.from?.id;
     const userFirstName = ctx.from?.first_name || "Unknown";
     const userUsername = ctx.from?.username || "no_username";
@@ -291,7 +302,8 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
         }
       }           
       
-      ctx.session.station = { name: "", fuel_types: [] };
+      ctx.session.station = { name: "", fuel_types: [], location: { lat: 0, lng: 0 } };
+
       ctx.session.step = undefined;
       
     } catch (error) {
@@ -306,7 +318,8 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
   if (data === "ownership_deny") {
     if (ctx.session.step !== "ownership") return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
     
-    const { name, fuel_types, location } = ctx.session.station;
+    const { name, fuel_types, location } = ctx.session.station!;
+
     const userId = ctx.from?.id;
     const userFirstName = ctx.from?.first_name || "Unknown";
     const userUsername = ctx.from?.username || "no_username";
@@ -403,7 +416,8 @@ export const handleStationCallbacks = async (ctx: MyContext) => {
         }
       }
 
-      ctx.session.station = { name: "", fuel_types: [] };
+      ctx.session.station = { name: "", fuel_types: [], location: { lat: 0, lng: 0 } };
+
       ctx.session.step = undefined;
       
     } catch (error) {
