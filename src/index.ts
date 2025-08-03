@@ -1,3 +1,4 @@
+import bodyParser from 'body-parser';
 import dotenv from "dotenv";
 import { Bot, InlineKeyboard } from "grammy";
 import { GrammyError, HttpError, session } from "grammy";
@@ -21,6 +22,7 @@ import { handleFuelPriceInput, stationInfo } from "./commands/stationAdmin/stati
 import { FeedbackModel } from "./Models/Feedback.ts";
 import { ADMINS } from "./utils/requireAdmin.ts";
 import { donateKeyboard } from "./keyboards/help.ts";
+import express from "express"
 
 dotenv.config();
 const Key = process.env.BOT_TOKEN;
@@ -233,12 +235,40 @@ bot.catch((err) => {
   }
 });
 
+const app = express();
+app.use(bodyParser.json());
+
+app.post("/webhook", async (req, res) => {
+  try {
+    await bot.handleUpdate(req.body);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("❌ Error handling update:", err);
+    res.sendStatus(500);
+  }
+});
+
+app.get("/", (_, res) => {
+  res.send("Bot is running (webhook mode)");
+});
+
 async function startBot() {
   try {
     await mongoose.connect(mongo_uri);
     console.log("Mongo connected");
-    console.log("Mongoose connection state:", mongoose.connection.readyState);
-    await bot.start();
+
+    await bot.init(); // REQUIRED for webhook mode
+
+    const webhookUrl = process.env.WEBHOOK_URL;
+    if (!webhookUrl) throw new Error("WEBHOOK_URL not set");
+
+    await bot.api.setWebhook(`${webhookUrl}/webhook`);
+    console.log("✅ Webhook set:", `${webhookUrl}/webhook`);
+
+    const port = Number(process.env.PORT) || 3000;
+    app.listen(port, () => {
+      console.log(`🚀 Server running on port ${port}`);
+    });
   } catch (error) {
     console.error("Error in startBot:", error);
   }
