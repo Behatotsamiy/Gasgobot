@@ -205,7 +205,7 @@ bot.on("message:text", handleAddStationName);
 
 // ☎️ Contact handler
 bot.on("message:contact", async (ctx) => {
-  const telegramId = ctx.from.id;
+  const telegramId = ctx.from?.id;
   const phone = ctx.message.contact?.phone_number;
   if (!phone) return;
 

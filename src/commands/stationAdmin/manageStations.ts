@@ -15,6 +15,8 @@ type stn = {
     lat: number;
     lng: number;
   };
+  pricing?: Map<string, number>;
+  busyness_level?: string;
 };
 
 export async function Stationlong(station: stn, ctx: MyContext) {

@@ -7,7 +7,7 @@ import {
   moneyKeyboard,
   addStation,
   handleAddStationName,
-  handleStationCallbacks, // ✅ New centralized handler
+  handleStationCallbacks,
   showFuelSelection,
   location_change,
   locationChangeAccept,
@@ -29,9 +29,8 @@ import {
   confirmPriceSave,
   cancelPriceSave,
   skipFuelPrice,
-  handleFuelPriceInput, // Add this export to your stationAdminsCommands.ts
+  handleFuelPriceInput,
 } from "../commands/stationAdmin/stationAdminsCommands.js";
-
 import { profile } from "../commands/profile.js";
 import { Stats } from "../commands/admin/stats.js";
 import { admin, findStation } from "../commands/_index.js";
@@ -49,8 +48,6 @@ import {
 } from "../commands/admin/adminPendingStations.ts";
 import { Station_Admin } from "../commands/stationAdmin/stationAdmin.ts";
 import { editStation } from "../commands/stationAdmin/manageStations.ts";
-
-// Import your edit fuel handlers
 import {
   handleEditFuelSelection,
   handleFuelDone,
@@ -66,21 +63,17 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   "menu:fuel": showFuelSelection,
   location_change: location_change,
   "location:yes": locationChangeAccept,
-
-  fuel_changed: editStation,
+  fuel_changed: (ctx) => editStation(ctx, ctx.session.editingStationId, "station_gas_change"),
   confirm_price_save: confirmPriceSave,
   cancel_price_save: cancelPriceSave,
-  skip_fuel_price: skipFuelPrice, // Add this
-  cancel_price_setting: cancelPriceSave, // Add this for canceling price setting
+  skip_fuel_price: skipFuelPrice,
+  cancel_price_setting: cancelPriceSave,
   addStationKB: addStation,
   station_info: stationInfo,
   station_change: stationChange,
   station_share_location: handleStationCallbacks,
   confirm_station_selection: confirmStationSelection,
-  // Edit fuel handlers
   edit_fuel_complete: handleFuelDone,
-
-  // 🔒 Admin-only
   admin_panel: requireAdmin(admin),
   admin_stats: requireAdmin(Stats),
   "admin_panel:back": requireAdmin(BacktoAdmin),
@@ -88,20 +81,13 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   admin_pending: requireAdmin(adminPendingStations),
   broadcast_confirm: confirmBroadcast,
   broadcast_cancel: cancelBroadcast,
-
-  // noop
-  noop: (ctx: MyContext) =>
-    ctx
-      .answerCallbackQuery({
-        text: "Boshqa shaxobchalar yo'q",
-        show_alert: true,
-      })
-      .catch(() => {}),
-  noopTwo: (ctx: MyContext) =>
-    ctx
-      .answerCallbackQuery({ text: "Oldingi sahifa yo'q", show_alert: true })
-      .catch(() => {}),
-
+  noop: async (ctx) =>
+    await ctx.answerCallbackQuery({
+      text: "Boshqa shaxobchalar yo'q",
+      show_alert: true,
+    }),
+  noopTwo: async (ctx) =>
+    await ctx.answerCallbackQuery({ text: "Oldingi sahifa yo'q", show_alert: true }),
   feedback: GetUserFeedback,
 };
 
@@ -110,8 +96,8 @@ export async function HandleCallbackQuery(ctx: MyContext) {
   if (!data) return;
 
   try {
-    const dynamicHandlers = [
-      [/^edit_fuel_select:/, handleEditFuelSelection],
+    const dynamicHandlers: [RegExp, (ctx: MyContext, arg?: string) => Promise<unknown>][] = [
+      [/^edit_fuel_select:(.+)/, handleEditFuelSelection],
       [/^fuel_select:/, handleStationCallbacks],
       [/^fuel_done$/, handleStationCallbacks],
       [/^ownership_(confirm|deny)$/, handleStationCallbacks],
@@ -134,8 +120,6 @@ export async function HandleCallbackQuery(ctx: MyContext) {
       [/^pricelist:/, pricelist],
       [/^view_prices:/, currentPrices],
       [/^competitor_prices:/, handleCompetitorPrices],
-
-
       [/^admin_users(\?page=\d+)?$/, requireAdmin(adminUsersHandler)],
       [/^pending_review:/, requireAdmin(showStationReview)],
       [/^approve_station:/, requireAdmin(approveStation)],
@@ -159,8 +143,8 @@ export async function HandleCallbackQuery(ctx: MyContext) {
     } else {
       const match = dynamicHandlers.find(([regex]) => regex.test(data));
       if (match) {
-        const handler = match[1];
-        const arg = data.includes(":") ? data.split(":")[1] : undefined;
+        const [, handler] = match;
+        const arg = data.includes(":") ? data.split(":").slice(1).join(":") : undefined;
         await handler(ctx, arg);
       } else {
         console.warn(`Unknown callback data: ${data}`);
@@ -168,7 +152,6 @@ export async function HandleCallbackQuery(ctx: MyContext) {
           text: "Nomaʼlum amal",
           show_alert: true,
         });
-        return;
       }
     }
 
