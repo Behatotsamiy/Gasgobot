@@ -1,9 +1,9 @@
-import { MyContext } from '../../types.ts';
-import { UserModel } from '../../Models/User.ts';
-import { InlineKeyboard } from 'grammy';
-import { StationModel } from '../../Models/Station.ts';
-import { wantTo_AddStantion } from '../../keyboards/wantToAddStantion.ts';
-import { Station_Admin } from './stationAdmin.ts';
+import { MyContext } from "../../types.js";
+import { UserModel } from "../../Models/User.js";
+import { InlineKeyboard } from "grammy";
+import { StationModel } from "../../Models/Station.js";
+import { wantTo_AddStantion } from "../../keyboards/wantToAddStantion.js";
+import { Station_Admin } from "./stationAdmin.js";
 
 export async function Busyness(ctx: MyContext) {
   const stationId = ctx.callbackQuery?.data?.split(":")[1];
@@ -14,17 +14,25 @@ export async function Busyness(ctx: MyContext) {
 
   const currentLevel = station.busyness?.level || "belgilanmagan";
 
-  try{await ctx.deleteMessage()}catch{console.log("Message delete did not work baka")}
+  try {
+    await ctx.deleteMessage();
+  } catch {
+    console.log("Message delete did not work baka");
+  }
 
   const keyboard = new InlineKeyboard()
-    .text("🟢 Green", `busyness_set:${stationId}:green`).row()
-    .text("🟠 Orange", `busyness_set:${stationId}:orange`).row()
+    .text("🟢 Green", `busyness_set:${stationId}:green`)
+    .row()
+    .text("🟠 Orange", `busyness_set:${stationId}:orange`)
+    .row()
     .text("🔴 Red", `busyness_set:${stationId}:red`)
     .row()
-    .text("Orqaga", `station_menu:${stationId}`)
+    .text("Orqaga", `station_menu:${stationId}`);
 
   await ctx.reply(
-    `📍 *${station.name}*\nJoriy bandlik darajasi: *${currentLevel.toUpperCase()}*\n\nO'zgartirmoqchimisiz?`,
+    `📍 *${
+      station.name
+    }*\nJoriy bandlik darajasi: *${currentLevel.toUpperCase()}*\n\nO'zgartirmoqchimisiz?`,
     {
       parse_mode: "Markdown",
       reply_markup: keyboard,
@@ -55,7 +63,9 @@ export async function ChangeBusyness(ctx: MyContext) {
   await station.save();
 
   await ctx.reply(
-    `✅ *${station.name}* shaxobchasining bandlik darajasi *${level.toUpperCase()}* ga o'zgartirildi.`,
+    `✅ *${
+      station.name
+    }* shaxobchasining bandlik darajasi *${level.toUpperCase()}* ga o'zgartirildi.`,
     { parse_mode: "Markdown" }
   );
 

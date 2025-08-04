@@ -1,6 +1,6 @@
-import { MyContext } from "../../types.ts";
-import { admin } from "../admin/admin.ts";
-import { broadcastMap } from "../../utils/broadcastMap.ts";
+import { MyContext } from "../../types.js";
+import { admin } from "../admin/admin.js";
+import { broadcastMap } from "../../utils/broadcastMap.js";
 
 export async function cancelBroadcast(ctx: MyContext) {
   await ctx.answerCallbackQuery("Broadcast cancelled");

@@ -1,8 +1,8 @@
-// src/scripts/deleteUser.ts
+import dotenv from 'dotenv';
 import mongoose from "mongoose";
-import { UserModel } from "../Models/User.js";
+import { UserModel } from "../Models/User.js"
 
-// Get the CLI argument
+dotenv.config()
 const search = process.argv[2]; // e.g., "Shohakbar"
 
 if (!search) {

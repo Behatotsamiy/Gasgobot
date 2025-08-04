@@ -1,4 +1,4 @@
-import { MyContext } from "../types.ts";
+import { MyContext } from "../types.js";
 
 export async function locationChangeAccept(ctx: MyContext) {
   try {
@@ -9,9 +9,7 @@ export async function locationChangeAccept(ctx: MyContext) {
 
   await ctx.reply("📍 Iltimos, yangi joylashuvingizni yuboring.", {
     reply_markup: {
-      keyboard: [
-        [{ text: "📍 Joylashuv yuborish", request_location: true }],
-      ],
+      keyboard: [[{ text: "📍 Joylashuv yuborish", request_location: true }]],
       resize_keyboard: true,
       one_time_keyboard: true,
     },

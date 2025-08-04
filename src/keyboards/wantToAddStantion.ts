@@ -1,7 +1,7 @@
 import { InlineKeyboard } from "grammy";
-import { StationModel } from "../Models/Station.ts";
-import { UserModel } from "../Models/User.ts";
-import { MyContext } from "../types.ts";
+import { StationModel } from "../Models/Station.js";
+import { UserModel } from "../Models/User.js";
+import { MyContext } from "../types.js";
 
 export async function wantTo_AddStantion(ctx: MyContext) {
   ctx.session.prevMenu = "station_menu";

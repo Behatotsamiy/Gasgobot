@@ -1,5 +1,5 @@
 import { InlineKeyboard } from "grammy";
-import { MyContext } from "../types.ts";
+import { MyContext } from "../types.js";
 
 export const donateKeyboard = async (ctx: MyContext) => {
   const keyboard = new InlineKeyboard()

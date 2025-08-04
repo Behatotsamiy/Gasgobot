@@ -1,20 +1,19 @@
-import { MyContext } from "../types.ts";
-import { UserModel } from "../Models/User.ts";
-import { showFuelSelection } from "../keyboards/_index.ts";
-import { locationRequestKeyboard } from "../keyboards/location.ts";
+import { MyContext } from "../types.js";
+import { UserModel } from "../Models/User.js";
+import { showFuelSelection } from "../keyboards/_index.js";
+import { locationRequestKeyboard } from "../keyboards/location.js";
 import { Keyboard } from "grammy";
 
 export const handleLocationSharing = async (ctx: MyContext) => {
-    const keyboard = new Keyboard()
+  const keyboard = new Keyboard()
     .requestLocation("📍 Joylashuvni yuborish")
     .resized();
 
   const location = ctx.message?.location;
   if (!location)
     return ctx.reply("Iltimos, joylashuvingizni yuboring.", {
-      reply_markup: keyboard
+      reply_markup: keyboard,
     });
-  
 
   const { latitude, longitude } = location;
   const telegramId = ctx.from?.id;
@@ -31,13 +30,15 @@ export const handleLocationSharing = async (ctx: MyContext) => {
 
     if (!user) return ctx.reply("Foydalanuvchi bazadan topilmadi.");
 
-    await ctx.reply(`✅ Joylashuvingiz saqlandi:\n🌍 ${latitude}, ${longitude}`, {
-      reply_markup: { remove_keyboard: true },
-    });
+    await ctx.reply(
+      `✅ Joylashuvingiz saqlandi:\n🌍 ${latitude}, ${longitude}`,
+      {
+        reply_markup: { remove_keyboard: true },
+      }
+    );
 
     await ctx.reply(`Qaytganingizdan xursandmiz, ${first_name}!`);
     return showFuelSelection(ctx);
-
   } catch (err) {
     console.error("📍 Location saqlashda xatolik:", err);
     return ctx.reply("Joylashuvni saqlashda xatolik yuz berdi.");

@@ -1,6 +1,6 @@
 import { StationModel } from "../Models/Station.js";
 import { UserModel } from "../Models/User.js";
-import { locationRequestKeyboard } from "../keyboards/location.ts";
+import { locationRequestKeyboard } from "../keyboards/location.js";
 import { MyContext } from "../types.js";
 import { InlineKeyboard } from "grammy";
 

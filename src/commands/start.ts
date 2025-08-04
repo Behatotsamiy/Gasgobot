@@ -1,7 +1,7 @@
 import { InlineKeyboard, Keyboard } from "grammy";
 import { UserModel } from "../Models/User.js";
 import { MyContext } from "../types.js";
-import {  showFuelSelection } from "../keyboards/_fuelkeyboard.ts";
+import { showFuelSelection } from "../keyboards/_fuelkeyboard.js";
 import { safeReply } from "../safeReply.js";
 
 export const start = async (ctx: MyContext) => {
@@ -52,7 +52,7 @@ export const start = async (ctx: MyContext) => {
 
     // Если у пользователя уже есть и контакт, и локация
     await safeReply(ctx, "Siz allaqachon ro'yxatdan o'tgansiz.");
-    return showFuelSelection(ctx)
+    return showFuelSelection(ctx);
   } catch (error) {
     console.error("Error fetching user:", error);
     safeReply(

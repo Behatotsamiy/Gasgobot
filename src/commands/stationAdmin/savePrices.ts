@@ -1,7 +1,7 @@
 import { MyContext } from "../../types.js";
-import { StationModel } from "../../Models/Station.ts";
+import { StationModel } from "../../Models/Station.js";
 import { pricelist } from "./stationAdminsCommands.js";
-import { UserModel } from "../../Models/User.ts";
+import { UserModel } from "../../Models/User.js";
 
 export const confirmPriceSave = async (ctx: MyContext) => {
   const userId = ctx.from?.id;
@@ -10,7 +10,10 @@ export const confirmPriceSave = async (ctx: MyContext) => {
   const prices = JSON.parse(ctx.session.broadcastPreview || "{}");
 
   if (!user || selectedIds.length === 0 || Object.keys(prices).length === 0) {
-    return ctx.answerCallbackQuery({ text: "❌ Xatolik: narxlar saqlanmadi", show_alert: true });
+    return ctx.answerCallbackQuery({
+      text: "❌ Xatolik: narxlar saqlanmadi",
+      show_alert: true,
+    });
   }
 
   await StationModel.updateMany(

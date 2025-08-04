@@ -7,27 +7,27 @@ import { hydrate } from "@grammyjs/hydrate";
 import { MyContext, SessionData } from "./types.js";
 import { UserModel } from "./Models/User.js";
 import { findStation, start, admin } from "./commands/_index.js";
-import { locationRequestKeyboard } from "./keyboards/location.ts";
-import { HandleCallbackQuery } from "./handlers/callbackHandlers.ts";
-import { broadcastMap } from "./utils/broadcastMap.ts";
-import { Station_Admin } from "./commands/stationAdmin/stationAdmin.ts";
+import { locationRequestKeyboard } from "./keyboards/location.js";
+import { HandleCallbackQuery } from "./handlers/callbackHandlers.js";
+import { broadcastMap } from "./utils/broadcastMap.js";
+import { Station_Admin } from "./commands/stationAdmin/stationAdmin.js";
 import {
   handleAddStationName,
   handleStationCallbacks,
   handleStationLocation,
-} from "./keyboards/addStation.ts";
-import { parsePrices } from "./utils/parsePrice.ts";
-import { StationModel } from "./Models/Station.ts";
-import { stationAdmin_Keyboard } from "./keyboards/stationAdminKeyboard.ts";
+} from "./keyboards/addStation.js";
+import { parsePrices } from "./utils/parsePrice.js";
+import { StationModel } from "./Models/Station.js";
+import { stationAdmin_Keyboard } from "./keyboards/stationAdminKeyboard.js";
 import {
   handleFuelPriceInput,
   stationInfo,
-} from "./commands/stationAdmin/stationAdminsCommands.ts";
-import { FeedbackModel } from "./Models/Feedback.ts";
-import { ADMINS } from "./utils/requireAdmin.ts";
-import { donateKeyboard } from "./keyboards/help.ts";
+} from "./commands/stationAdmin/stationAdminsCommands.js";
+import { FeedbackModel } from "./Models/Feedback.js";
+import { ADMINS } from "./utils/requireAdmin.js";
+import { donateKeyboard } from "./keyboards/help.js";
 import express from "express";
-import { handleLocationSharing } from "./handlers/handleLocation.ts";
+import { handleLocationSharing } from "./handlers/handleLocation.js";
 
 dotenv.config();
 const Key = process.env.BOT_TOKEN;

@@ -1,7 +1,7 @@
-import { MyContext } from "../../types.ts";
-import { UserModel } from "../../Models/User.ts";
-import { admin } from "../admin/admin.ts";
-import { broadcastMap } from "../../utils/broadcastMap.ts"; // ⬅️ make sure it's imported from shared file
+import { MyContext } from "../../types.js";
+import { UserModel } from "../../Models/User.js";
+import { admin } from "../admin/admin.js";
+import { broadcastMap } from "../../utils/broadcastMap.js"; // ⬅️ make sure it's imported from shared file
 
 export async function confirmBroadcast(ctx: MyContext) {
   await ctx.answerCallbackQuery();
@@ -43,7 +43,9 @@ export async function confirmBroadcast(ctx: MyContext) {
 
   broadcastMap.delete(userId);
 
-  await ctx.reply(`📢 Broadcast finished.\n✅ Sent: ${success}\n❌ Failed: ${fail}`);
+  await ctx.reply(
+    `📢 Broadcast finished.\n✅ Sent: ${success}\n❌ Failed: ${fail}`
+  );
 
   await admin(ctx);
 }

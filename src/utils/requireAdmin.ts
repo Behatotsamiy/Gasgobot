@@ -1,4 +1,3 @@
-// utils/requireAdmin.ts
 import { MyContext } from "../types.js";
 
 export const ADMINS = [5370588246, 7244995341, 2093756924, 1643505035];

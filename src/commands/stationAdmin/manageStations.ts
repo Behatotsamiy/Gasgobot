@@ -1,10 +1,10 @@
 // --- Imports ---
-import { StationModel } from "../../Models/Station.ts";
-import { UserModel } from "../../Models/User.ts";
-import { stationInfo } from "./stationAdminsCommands.ts";
-import { MyContext } from "../../types.ts";
+import { StationModel } from "../../Models/Station.js";
+import { UserModel } from "../../Models/User.js";
+import { stationInfo } from "./stationAdminsCommands.js";
+import { MyContext } from "../../types.js";
 import { InlineKeyboard } from "grammy";
-import { backToMenuKeyboard } from "../../keyboards/backToMenu.ts";
+import { backToMenuKeyboard } from "../../keyboards/backToMenu.js";
 
 type stn = {
   _id: unknown;
@@ -31,18 +31,18 @@ export async function Stationlong(station: stn, ctx: MyContext) {
     `⛽ Yonilg'i: ${station.fuel_types.join(", ")}\n` +
     `📍 Koordinatalar: ${station.location.lat}, ${station.location.lng}\n` +
     `📊 Status: ${station.status}\n`;
-    if (station.pricing instanceof Map) {
-      for (const [fuel, price] of station.pricing.entries()) {
-        msg += `   • ${fuel}: ${price.toLocaleString()} so'm\n`;
-      }
-    } else {
-      const pricing = station.pricing as { [key: string]: number };
-      for (const fuel in pricing) {
-        const price = pricing[fuel];
-        msg += `   • ${fuel}: ${price.toLocaleString()} so'm\n`;
-      }
+  if (station.pricing instanceof Map) {
+    for (const [fuel, price] of station.pricing.entries()) {
+      msg += `   • ${fuel}: ${price.toLocaleString()} so'm\n`;
     }
-    
+  } else {
+    const pricing = station.pricing as { [key: string]: number };
+    for (const fuel in pricing) {
+      const price = pricing[fuel];
+      msg += `   • ${fuel}: ${price.toLocaleString()} so'm\n`;
+    }
+  }
+
   if (station.busyness_level) {
     msg += `🚦 Bandlik: ${station.busyness_level}\n`;
   }
@@ -52,8 +52,11 @@ export async function Stationlong(station: stn, ctx: MyContext) {
   return ctx.reply(msg.trim(), { reply_markup: keyboard });
 }
 
-
-export async function editStation(ctx: MyContext, id: unknown, call: string | undefined) {
+export async function editStation(
+  ctx: MyContext,
+  id: unknown,
+  call: string | undefined
+) {
   if (call === "station_name_change") {
     ctx.session.step = "station_name_change";
     ctx.session.editingStationId = id;
@@ -82,58 +85,102 @@ export async function editStation(ctx: MyContext, id: unknown, call: string | un
   if (call === "station_location_change") {
     ctx.session.step = "station_location_change";
     ctx.session.editingStationId = id;
-    return ctx.reply("Shaxobchaning yangi joylashuvini 42.4242, 69.6969 formatida yoki lokatsiya orqali o'zgartiring");
+    return ctx.reply(
+      "Shaxobchaning yangi joylashuvini 42.4242, 69.6969 formatida yoki lokatsiya orqali o'zgartiring"
+    );
   }
 }
 
 function showFuelSelectionMenu(ctx: MyContext, selectedFuels: string[]) {
   ctx.session.prevMenu = "stations";
-  const fuelTypes = ["AI-80", "AI-91", "AI-92", "AI-95", "AI-98", "Dizel", "Metan", "Propan", "Elektrik"];
+  const fuelTypes = [
+    "AI-80",
+    "AI-91",
+    "AI-92",
+    "AI-95",
+    "AI-98",
+    "Dizel",
+    "Metan",
+    "Propan",
+    "Elektrik",
+  ];
 
   const getEditFuelKeyboard = (selected: string[]) => ({
     inline_keyboard: [
-      ...fuelTypes.map(fuel => [{
-        text: selected.includes(fuel) ? `✅ ${fuel}` : fuel,
-        callback_data: `edit_fuel_select:${fuel}`
-      }]),
+      ...fuelTypes.map((fuel) => [
+        {
+          text: selected.includes(fuel) ? `✅ ${fuel}` : fuel,
+          callback_data: `edit_fuel_select:${fuel}`,
+        },
+      ]),
       [{ text: "✅ Tayyor", callback_data: "edit_fuel_complete" }],
-      [{ text: "🔙 Orqaga", callback_data: `station_menu:${ctx.session.editingStationId}` }]
-    ]
+      [
+        {
+          text: "🔙 Orqaga",
+          callback_data: `station_menu:${ctx.session.editingStationId}`,
+        },
+      ],
+    ],
   });
 
   return ctx.reply("⛽ Yoqilg'i turlarini tanlang:", {
-    reply_markup: getEditFuelKeyboard(selectedFuels)
+    reply_markup: getEditFuelKeyboard(selectedFuels),
   });
 }
 
-export async function handleEditFuelSelection(ctx: MyContext, fuelType: string) {
+export async function handleEditFuelSelection(
+  ctx: MyContext,
+  fuelType: string
+) {
   if (ctx.session.step !== "station_gas_change" || !ctx.session.station) {
-    return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
+    return ctx.answerCallbackQuery({
+      text: "Noto'g'ri holat",
+      show_alert: true,
+    });
   }
 
   const currentFuels = ctx.session.station.fuel_types;
   if (currentFuels.includes(fuelType)) {
-    ctx.session.station.fuel_types = currentFuels.filter(f => f !== fuelType);
+    ctx.session.station.fuel_types = currentFuels.filter((f) => f !== fuelType);
   } else {
     ctx.session.station.fuel_types.push(fuelType);
   }
 
-  const fuelTypes = ["AI-80", "AI-91", "AI-92", "AI-95", "AI-98", "Dizel", "Metan", "Propan", "Elektrik"];
+  const fuelTypes = [
+    "AI-80",
+    "AI-91",
+    "AI-92",
+    "AI-95",
+    "AI-98",
+    "Dizel",
+    "Metan",
+    "Propan",
+    "Elektrik",
+  ];
   const selected = ctx.session.station.fuel_types;
 
   const getEditFuelKeyboard = (selected: string[]) => ({
     inline_keyboard: [
-      ...fuelTypes.map(fuel => [{
-        text: selected.includes(fuel) ? `✅ ${fuel}` : fuel,
-        callback_data: `edit_fuel_select:${fuel}`
-      }]),
+      ...fuelTypes.map((fuel) => [
+        {
+          text: selected.includes(fuel) ? `✅ ${fuel}` : fuel,
+          callback_data: `edit_fuel_select:${fuel}`,
+        },
+      ]),
       [{ text: "✅ Tayyor", callback_data: "edit_fuel_complete" }],
-      [{ text: "🔙 Orqaga", callback_data: `edit_station:${ctx.session.editingStationId}` }]
-    ]
+      [
+        {
+          text: "🔙 Orqaga",
+          callback_data: `edit_station:${ctx.session.editingStationId}`,
+        },
+      ],
+    ],
   });
 
   try {
-    await ctx.editMessageReplyMarkup({ reply_markup: getEditFuelKeyboard(selected) });
+    await ctx.editMessageReplyMarkup({
+      reply_markup: getEditFuelKeyboard(selected),
+    });
     await ctx.answerCallbackQuery();
   } catch (error) {
     await ctx.answerCallbackQuery({ text: "Xatolik yuz berdi" });
@@ -142,7 +189,10 @@ export async function handleEditFuelSelection(ctx: MyContext, fuelType: string) 
 
 export async function handleFuelDone(ctx: MyContext) {
   if (ctx.session.step !== "station_gas_change") {
-    return ctx.answerCallbackQuery({ text: "Noto'g'ri holat", show_alert: true });
+    return ctx.answerCallbackQuery({
+      text: "Noto'g'ri holat",
+      show_alert: true,
+    });
   }
 
   if (!ctx.session.station?.fuel_types?.length) {
@@ -187,18 +237,26 @@ export async function handleStationNameUpdate(ctx: MyContext, newName: string) {
   ctx.session.editingStationId = undefined;
 
   await ctx.reply(`✅ Shaxobcha nomi "${newName}" ga o'zgartirildi!`, {
-    reply_markup: new InlineKeyboard().text("🔙 Orqaga", `user_station_info:${updated._id}`)
+    reply_markup: new InlineKeyboard().text(
+      "🔙 Orqaga",
+      `user_station_info:${updated._id}`
+    ),
   });
 }
 
-export async function handleStationLocationUpdate(ctx: MyContext, locationInput: string) {
+export async function handleStationLocationUpdate(
+  ctx: MyContext,
+  locationInput: string
+) {
   let lat: number, lng: number;
   const coordMatch = locationInput.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
   if (coordMatch) {
     lat = parseFloat(coordMatch[1]);
     lng = parseFloat(coordMatch[2]);
   } else {
-    return ctx.reply("❌ Noto'g'ri format. Iltimos, 42.4242, 69.6969 formatida kiriting yoki lokatsiya yuboring.");
+    return ctx.reply(
+      "❌ Noto'g'ri format. Iltimos, 42.4242, 69.6969 formatida kiriting yoki lokatsiya yuboring."
+    );
   }
 
   const user = await UserModel.findOne({ telegramId: ctx.from?.id });
@@ -215,7 +273,13 @@ export async function handleStationLocationUpdate(ctx: MyContext, locationInput:
   ctx.session.step = undefined;
   ctx.session.editingStationId = undefined;
 
-  await ctx.reply(`✅ Shaxobcha joylashuvi (${lat}, ${lng}) ga o'zgartirildi!`, {
-    reply_markup: new InlineKeyboard().text("🔙 Orqaga", `user_station_info:${updated._id}`)
-  });
+  await ctx.reply(
+    `✅ Shaxobcha joylashuvi (${lat}, ${lng}) ga o'zgartirildi!`,
+    {
+      reply_markup: new InlineKeyboard().text(
+        "🔙 Orqaga",
+        `user_station_info:${updated._id}`
+      ),
+    }
+  );
 }

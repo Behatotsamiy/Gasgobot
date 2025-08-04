@@ -1,4 +1,3 @@
-// utils/safeReply.ts
 import { MyContext } from "./types.js";
 
 export async function safeReply(

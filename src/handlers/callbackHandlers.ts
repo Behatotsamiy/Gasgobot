@@ -45,15 +45,15 @@ import {
   rejectStation,
   viewStationLocation,
   setStationToTesting,
-} from "../commands/admin/adminPendingStations.ts";
-import { Station_Admin } from "../commands/stationAdmin/stationAdmin.ts";
-import { editStation } from "../commands/stationAdmin/manageStations.ts";
+} from "../commands/admin/adminPendingStations.js";
+import { Station_Admin } from "../commands/stationAdmin/stationAdmin.js";
+import { editStation } from "../commands/stationAdmin/manageStations.js";
 import {
   handleEditFuelSelection,
   handleFuelDone,
-} from "../commands/stationAdmin/manageStations.ts";
-import { Busyness, ChangeBusyness } from "../commands/stationAdmin/busyness.ts";
-import { GetUserFeedback } from "../commands/Feedback.ts";
+} from "../commands/stationAdmin/manageStations.js";
+import { Busyness, ChangeBusyness } from "../commands/stationAdmin/busyness.js";
+import { GetUserFeedback } from "../commands/Feedback.js";
 
 const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   profile,
@@ -62,7 +62,8 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
   "menu:fuel": showFuelSelection,
   location_change: location_change,
   "location:yes": locationChangeAccept,
-  fuel_changed: (ctx) => editStation(ctx, ctx.session.editingStationId, "station_gas_change"),
+  fuel_changed: (ctx) =>
+    editStation(ctx, ctx.session.editingStationId, "station_gas_change"),
   confirm_price_save: confirmPriceSave,
   cancel_price_save: cancelPriceSave,
   skip_fuel_price: skipFuelPrice,
@@ -86,7 +87,10 @@ const callbackHandlers: Record<string, (ctx: MyContext) => Promise<unknown>> = {
       show_alert: true,
     }),
   noopTwo: async (ctx) =>
-    await ctx.answerCallbackQuery({ text: "Oldingi sahifa yo'q", show_alert: true }),
+    await ctx.answerCallbackQuery({
+      text: "Oldingi sahifa yo'q",
+      show_alert: true,
+    }),
   feedback: GetUserFeedback,
 };
 
@@ -95,13 +99,19 @@ export async function HandleCallbackQuery(ctx: MyContext) {
   if (!data) return;
 
   try {
-    const dynamicHandlers: [RegExp, (ctx: MyContext, arg?: string) => Promise<unknown>][] = [
-      [/^edit_fuel_select:(.+)/, async (ctx) => {
-        const match = ctx.match?.[1];
-        if (!match) return Promise.resolve();
-        return handleEditFuelSelection(ctx, match);
-      }],
-      
+    const dynamicHandlers: [
+      RegExp,
+      (ctx: MyContext, arg?: string) => Promise<unknown>
+    ][] = [
+      [
+        /^edit_fuel_select:(.+)/,
+        async (ctx) => {
+          const match = ctx.match?.[1];
+          if (!match) return Promise.resolve();
+          return handleEditFuelSelection(ctx, match);
+        },
+      ],
+
       [/^fuel_select:/, handleStationCallbacks],
       [/^fuel_done$/, handleStationCallbacks],
       [/^ownership_(confirm|deny)$/, handleStationCallbacks],
@@ -133,7 +143,6 @@ export async function HandleCallbackQuery(ctx: MyContext) {
       [/^backToMenu$/, backToMenuKeyboard],
       [/^add_station$/, addStation],
       [/^money$/, moneyKeyboard],
-
     ];
 
     if (data === "station_admin") {
@@ -150,7 +159,9 @@ export async function HandleCallbackQuery(ctx: MyContext) {
       const match = dynamicHandlers.find(([regex]) => regex.test(data));
       if (match) {
         const [, handler] = match;
-        const arg = data.includes(":") ? data.split(":").slice(1).join(":") : undefined;
+        const arg = data.includes(":")
+          ? data.split(":").slice(1).join(":")
+          : undefined;
         await handler(ctx, arg);
       } else {
         console.warn(`Unknown callback data: ${data}`);

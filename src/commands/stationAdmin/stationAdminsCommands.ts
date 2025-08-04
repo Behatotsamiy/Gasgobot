@@ -1,10 +1,10 @@
-import { MyContext } from "../../types.ts";
-import { UserModel } from "../../Models/User.ts";
-import { StationModel } from "../../Models/Station.ts";
-import { addStation } from "../../keyboards/addStation.ts";
+import { MyContext } from "../../types.js";
+import { UserModel } from "../../Models/User.js";
+import { StationModel } from "../../Models/Station.js";
+import { addStation } from "../../keyboards/addStation.js";
 import { InlineKeyboard } from "grammy";
-import { wantTo_AddStantion } from "../../keyboards/wantToAddStantion.ts";
-import { Stationlong, editStation } from "./manageStations.ts";
+import { wantTo_AddStantion } from "../../keyboards/wantToAddStantion.js";
+import { Stationlong, editStation } from "./manageStations.js";
 
 /**
  * Utility function to safely delete a message.
@@ -92,7 +92,6 @@ export const userStationInfo = async (ctx: MyContext) => {
   for (const [fuel, price] of Object.entries(station.pricing)) {
     plainPricing[fuel] = price;
   }
-  
 
   return Stationlong(station, ctx);
 };
@@ -109,15 +108,17 @@ export const stationChange = async (ctx: MyContext) => {
   const station = await StationModel.findById(stationId);
   if (!station) return ctx.reply("❌ Stansiya topilmadi");
 
-  if (call?.startsWith("edit_station")){
+  if (call?.startsWith("edit_station")) {
     const keyboard = new InlineKeyboard()
-    .text("Lokatsiya",`station_location_change:${stationId}`)
-    .row()
-    .text("Nomi",`station_name_change:${stationId}`)
-    .row()
-    .text("Egalik",`station_owner_transfer:${stationId}`);
+      .text("Lokatsiya", `station_location_change:${stationId}`)
+      .row()
+      .text("Nomi", `station_name_change:${stationId}`)
+      .row()
+      .text("Egalik", `station_owner_transfer:${stationId}`);
 
-    return ctx.reply("Shaxobchangizning qaysi malumotini o'zgartirmoqchisiz?",{reply_markup:keyboard})
+    return ctx.reply("Shaxobchangizning qaysi malumotini o'zgartirmoqchisiz?", {
+      reply_markup: keyboard,
+    });
   }
 
   return editStation(ctx, station._id, call);
@@ -176,7 +177,6 @@ export const changePrice = async (ctx: MyContext) => {
 
   return askForFuelPrice(ctx);
 };
-
 
 const askForFuelPrice = async (ctx: MyContext) => {
   const fuels = ctx.session.availableFuels || [];
@@ -293,7 +293,6 @@ export const confirmPriceSave = async (ctx: MyContext) => {
         }
       }
     }
-    
 
     await station.save();
 
@@ -375,10 +374,9 @@ export const handleMyPrices = async (ctx: MyContext) => {
       station.pricing instanceof Map
         ? station.pricing.get(fuel)
         : station.pricing[fuel];
-  
+
     msg += `• ${fuel}: ${price ? `${price.toLocaleString()} so'm` : "yo'q"}\n`;
   }
-  
 
   const keyboard = new InlineKeyboard().text(
     "⬅️ Ortga",
@@ -419,16 +417,16 @@ export const handleCompetitorPrices = async (ctx: MyContext) => {
   for (const station of competitors) {
     if (!station.pricing) continue;
     for (const fuel of station.fuel_types) {
-      const price = station.pricing instanceof Map
-        ? station.pricing.get(fuel)
-        : station.pricing[fuel];
-    
+      const price =
+        station.pricing instanceof Map
+          ? station.pricing.get(fuel)
+          : station.pricing[fuel];
+
       if (typeof price === "number") {
         if (!fuelPrices[fuel]) fuelPrices[fuel] = [];
         fuelPrices[fuel].push(price);
       }
     }
-    
   }
 
   if (Object.keys(fuelPrices).length === 0) {

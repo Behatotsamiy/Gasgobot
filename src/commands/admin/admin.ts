@@ -1,4 +1,4 @@
-import { adminKeyboard } from "../../keyboards/inline/adminKeyboard.ts";
+import { adminKeyboard } from "../../keyboards/inline/adminKeyboard.js";
 import { MyContext } from "../../types.js";
 
 export const admin = async (ctx: MyContext) => {

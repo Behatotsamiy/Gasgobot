@@ -1,8 +1,12 @@
-import { MyContext } from "../../types.ts";
+import { MyContext } from "../../types.js";
 import { InlineKeyboard } from "grammy";
 
-export async function location_change(ctx:MyContext){
-  try{await ctx.deleteMessage()}catch{console.log("Message delete did not work baka")}
+export async function location_change(ctx: MyContext) {
+  try {
+    await ctx.deleteMessage();
+  } catch {
+    console.log("Message delete did not work baka");
+  }
 
   const keyboard = new InlineKeyboard()
     .text("✅ Ha", "location:yes")
