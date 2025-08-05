@@ -1,0 +1,10 @@
+node --loader ts-node/esm src/testing/newUser.ts Abidov
+
+userni olib tashlash , username yoki firstname parametrlar qabul qiladi
+
+node --loader ts-node/esm src/testing/cleanup.ts 
+
+stansiyalarni yozilgan parametrlarga kora tozalaydi
+
+
+botni start qilish , .env.example ochib .env yarating . tokenga test bot tokeni ,  webhookga ngrok vaqtinchalik server url

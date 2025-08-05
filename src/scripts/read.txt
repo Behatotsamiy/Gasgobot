@@ -1,2 +1,0 @@
-node --loader ts-node/esm src/scripts/newUser.ts Abidov
-node --loader ts-node/esm src/scripts/cleanup.ts

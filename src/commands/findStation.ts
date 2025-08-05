@@ -24,6 +24,9 @@ function getDistance(
 }
 
 export const findStation = async (ctx: MyContext) => {
+  if (!ctx.session.prevMenu) {
+    ctx.session.prevMenu = "fuel_menu";
+  }
   try {
     const telegramId = ctx.from?.id;
     const data = ctx.callbackQuery?.data?.split(":");
